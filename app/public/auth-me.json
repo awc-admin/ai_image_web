@@ -1,0 +1,8 @@
+{
+  "clientPrincipal": {
+    "identityProvider": "aad",
+    "userId": "mock-user-id-12345",
+    "userDetails": "John Doe",
+    "userRoles": ["authenticated", "user"]
+  }
+}
