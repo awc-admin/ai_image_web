@@ -36,6 +36,14 @@
   margin-top: 30px;
 }
 
+/* Job form wrapper */
+.job-form-wrapper {
+  width: 100%;
+  max-width: 650px;
+  margin-top: 40px;
+  font-size: 1rem;
+}
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);

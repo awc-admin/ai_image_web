@@ -1,8 +1,12 @@
 import './App.css';
 import Authentication from './components/Authentication';
+import JobForm from './components/JobForm';
+import { useAuth } from './hooks/useAuth';
 import './components/Authentication.css';
 
 function App() {
+  const { isAuthenticated, loading } = useAuth();
+
   return (
     <div className="App">
       <header className="App-header">
@@ -14,6 +18,13 @@ function App() {
         <div className="auth-wrapper">
           <Authentication />
         </div>
+        
+        {/* Render JobForm only when user is authenticated */}
+        {isAuthenticated && !loading && (
+          <div className="job-form-wrapper">
+            <JobForm />
+          </div>
+        )}
       </header>
     </div>
   );
