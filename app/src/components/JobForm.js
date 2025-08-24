@@ -89,12 +89,17 @@ const JobForm = () => {
   
   // LocalStorage utilities for saving and retrieving upload state
   const saveUploadState = (jobId, fileList, status = UPLOAD_STATES.UPLOADING) => {
+    if (!fileList || fileList.length === 0) {
+      console.error("No files provided to saveUploadState");
+      return null;
+    }
+    
     // Convert FileList to an array of file metadata
     const files = Array.from(fileList).map(file => ({
       name: file.name,
       size: file.size,
       type: file.type,
-      path: file.webkitRelativePath,
+      path: file.webkitRelativePath || '',
       status: 'pending' // Initial status for all files
     }));
     
@@ -425,6 +430,29 @@ const JobForm = () => {
         // Reset the isSubmitting state
         setIsSubmitting(false);
         
+        // Show a success message that upload is starting automatically
+        setErrors({
+          ...errors,
+          api: 'Job created successfully. Starting upload automatically...'
+        });
+        
+        // Add success class to the message
+        setTimeout(() => {
+          const apiErrorMessage = document.querySelector('.api-error-message');
+          if (apiErrorMessage) {
+            apiErrorMessage.className = 'api-success-message';
+          }
+        }, 0);
+        
+        // Store current files in a variable to ensure they're available for upload
+        const currentFiles = formData.files;
+        
+        // Automatically start the upload process after job creation
+        // Small timeout to ensure UI updates before starting upload
+        setTimeout(() => {
+          uploadFiles(result.jobId, currentFiles);
+        }, 1000);
+        
       } else {
         const errorText = await response.text();
         let errorMessage = 'An error occurred while creating the job';
@@ -465,8 +493,18 @@ const JobForm = () => {
       return;
     }
     
-    // Start the upload process
-    await uploadFiles(jobDetails.jobId, formData.files);
+    // If we don't have files in formData but have a valid job ID, 
+    // the user might be resuming an upload with newly selected files
+    const fileInput = document.getElementById('files');
+    const filesToUse = formData.files || (fileInput && fileInput.files ? fileInput.files : null);
+    
+    if (!filesToUse || filesToUse.length === 0) {
+      setErrors({...errors, api: 'Please select image files to upload'});
+      return;
+    }
+    
+    // Start the upload process with the available files
+    await uploadFiles(jobDetails.jobId, filesToUse);
   };
 
   // useEffect to check for incomplete uploads when component mounts
@@ -573,7 +611,7 @@ const JobForm = () => {
                 type="button"
                 className="upload-button"
                 onClick={handleStartUpload}
-                disabled={!formData.files || uploadState === UPLOAD_STATES.CREATING_JOB}
+                disabled={uploadState === UPLOAD_STATES.CREATING_JOB}
               >
                 {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Upload'}
               </button>

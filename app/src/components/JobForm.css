@@ -119,16 +119,27 @@
   animation: fadeIn 0.5s ease-in-out;
 }
 
-/* API error message styling */
+/* API message styling - can be success or error depending on content */
 .api-error-message {
-  background-color: #fde7e9;
-  color: #d83b01;
   padding: 1rem;
   border-radius: 4px;
   margin-bottom: 1.5rem;
-  border-left: 4px solid #d83b01;
   font-weight: 500;
   animation: fadeIn 0.5s ease-in-out;
+  background-color: #fde7e9;
+  color: #d83b01;
+  border-left: 4px solid #d83b01;
+}
+
+.api-success-message {
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  animation: fadeIn 0.5s ease-in-out;
+  background-color: #dff6dd;
+  color: #107c10;
+  border-left: 4px solid #107c10;
 }
 
 @keyframes fadeIn {
