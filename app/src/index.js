@@ -9,22 +9,44 @@ import { setupMockAuth } from './utils/mockAuth';
 // This wraps the fetch API to add authentication headers
 setupMockAuth();
 
-// Set mock auth status in localStorage for local development
-localStorage.setItem('mockAuthStatus', 'authenticated');
+// Check if mock auth status exists in localStorage, default to not authenticated
+if (!localStorage.getItem('mockAuthStatus')) {
+  localStorage.setItem('mockAuthStatus', 'unauthenticated');
+}
 
-// Setup mock response for /.auth/me endpoint
+// Setup mock response for /.auth/me and auth endpoints
 const originalFetch = window.fetch;
 window.fetch = async (url, options) => {
-  if (url === '/.auth/me') {
-    return {
-      ok: true,
-      json: async () => ({ clientPrincipal: {
-        identityProvider: "aad",
-        userId: "test-user-id", 
-        userDetails: "test@example.com",
-        userRoles: ["authenticated"]
-      }})
-    };
+  // Handle auth endpoints
+  if (url === '/.auth/login/aad') {
+    localStorage.setItem('mockAuthStatus', 'authenticated');
+    window.location.href = '/'; // Redirect back to home page
+    return { ok: true };
+  } 
+  else if (url === '/.auth/logout' || url.startsWith('/.auth/logout?')) {
+    localStorage.setItem('mockAuthStatus', 'unauthenticated');
+    window.location.href = '/'; // Redirect back to home page
+    return { ok: true };
+  }
+  else if (url === '/.auth/me') {
+    const isAuthenticated = localStorage.getItem('mockAuthStatus') === 'authenticated';
+    
+    if (isAuthenticated) {
+      return {
+        ok: true,
+        json: async () => ({ clientPrincipal: {
+          identityProvider: "aad",
+          userId: "test-user-id", 
+          userDetails: "test@example.com",
+          userRoles: ["authenticated"]
+        }})
+      };
+    } else {
+      return {
+        ok: true,
+        json: async () => ({ clientPrincipal: null })
+      };
+    }
   }
   return originalFetch(url, options);
 };

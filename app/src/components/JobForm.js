@@ -176,33 +176,39 @@ const JobForm = () => {
     return uploadJobs.sort((a, b) => b.timestamp - a.timestamp)[0] || null;
   };
 
-  // Azure Blob Storage file upload functions
-  const uploadFileToBlobStorage = async (file, sasUrl) => {
+  // File upload functions using API instead of direct blob storage
+  const uploadFileViaAPI = async (file, jobId) => {
     try {
-      // Extract the URL without the SAS token
-      const urlParts = sasUrl.split('?');
-      const baseUrl = urlParts[0];
-      const sasToken = urlParts.length > 1 ? '?' + urlParts[1] : '';
+      // Read the file as a base64 string
+      const fileContent = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
       
-      // Extract the container and directory path
-      const urlWithoutProtocol = baseUrl.replace(/^https?:\/\//, '');
-      const [accountAndContainer, ...pathParts] = urlWithoutProtocol.split('/');
-      const [accountWithDomain, container] = accountAndContainer.split('.');
-      const accountName = accountWithDomain.split('.')[0];
+      // Prepare the payload
+      const payload = {
+        jobId,
+        fileName: file.name,
+        fileContent: fileContent,
+        contentType: file.type
+      };
       
-      // Get the directory path to preserve folder structure
-      const blobName = pathParts.join('/') + file.webkitRelativePath;
+      // Upload via API
+      const response = await fetch('/api/upload-file', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
       
-      // Create the BlobServiceClient and ContainerClient
-      const blobServiceClient = new BlobServiceClient(
-        `https://${accountName}.blob.core.windows.net${sasToken}`
-      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
+      }
       
-      const containerClient = blobServiceClient.getContainerClient(container);
-      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-      
-      // Upload the file
-      await blockBlobClient.uploadData(file);
       return true;
     } catch (error) {
       console.error(`Error uploading file ${file.name}:`, error);
@@ -211,7 +217,7 @@ const JobForm = () => {
   };
   
   // Function to upload all files in a resilient manner
-  const uploadFiles = async (jobId, sasUrl, files) => {
+  const uploadFiles = async (jobId, files) => {
     // Get the current upload state from localStorage
     const state = getUploadState(jobId);
     if (!state) {
@@ -252,7 +258,7 @@ const JobForm = () => {
       }));
       
       // Upload the file
-      const success = await uploadFileToBlobStorage(file, sasUrl);
+      const success = await uploadFileViaAPI(file, jobId);
       
       if (success) {
         // Update file status in localStorage
@@ -270,36 +276,17 @@ const JobForm = () => {
       }
     }
     
-    // All files uploaded, update state to completing
+      // All files uploaded, update state to completing
     setUploadState(UPLOAD_STATES.COMPLETING);
     
     // Call the complete-upload endpoint (to be implemented)
     try {
-      // In a real implementation, you would call the API endpoint
-      // For now, we'll just simulate success
-      
-      /*
-      const response = await fetch('/api/complete-upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ jobId })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to complete upload');
-      }
-      */
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // In a real implementation, you would call a separate API endpoint to finalize
+      // For now, we'll just mark it as complete
       
       // Upload completed successfully
       setUploadState(UPLOAD_STATES.COMPLETE);
-      setSubmitSuccess(true);
-      
-      // Remove the upload state from localStorage
+      setSubmitSuccess(true);      // Remove the upload state from localStorage
       removeUploadState(jobId);
       
       // Hide success message after 5 seconds
@@ -473,13 +460,13 @@ const JobForm = () => {
   
   // Handle starting the upload process
   const handleStartUpload = async () => {
-    if (!jobDetails || !jobDetails.sasTokenUrl) {
-      setErrors({...errors, api: 'Missing job details or SAS URL'});
+    if (!jobDetails || !jobDetails.jobId) {
+      setErrors({...errors, api: 'Missing job details'});
       return;
     }
     
     // Start the upload process
-    await uploadFiles(jobDetails.jobId, jobDetails.sasTokenUrl, formData.files);
+    await uploadFiles(jobDetails.jobId, formData.files);
   };
 
   // useEffect to check for incomplete uploads when component mounts
@@ -508,9 +495,6 @@ const JobForm = () => {
           // Set job details
           setJobDetails({
             jobId: incompleteUpload.jobId,
-            // We need the real SAS token URL from the server
-            // For now, we'll just simulate it
-            sasTokenUrl: `https://storage.blob.core.windows.net/test-centralised-upload/${incompleteUpload.jobId}?sv=...`,
             azCopyCommand: `azcopy copy "<local_folder_path>/*" "https://storage.blob.core.windows.net/test-centralised-upload/${incompleteUpload.jobId}?sv=..." --recursive=true`
           });
           
@@ -589,7 +573,7 @@ const JobForm = () => {
                 type="button"
                 className="upload-button"
                 onClick={handleStartUpload}
-                disabled={uploadState === UPLOAD_STATES.CREATING_JOB}
+                disabled={!formData.files || uploadState === UPLOAD_STATES.CREATING_JOB}
               >
                 {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Upload'}
               </button>
