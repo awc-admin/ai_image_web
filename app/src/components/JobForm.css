@@ -164,6 +164,132 @@
   opacity: 0.7;
 }
 
+/* Job Details Section */
+.job-details {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  border-left: 4px solid #0078d4;
+}
+
+.job-details h3 {
+  color: #0078d4;
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.job-details p {
+  margin-bottom: 0.5rem;
+}
+
+/* Upload Progress Bar */
+.upload-progress {
+  margin: 1.5rem 0;
+}
+
+.progress-label {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.progress-bar-container {
+  height: 12px;
+  background-color: #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #0078d4;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* AzCopy Command */
+.azcopy-command {
+  margin: 1.5rem 0;
+}
+
+.azcopy-command h4 {
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.azcopy-command pre {
+  background-color: #f0f0f0;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #333;
+  border-left: 3px solid #ccc;
+}
+
+/* Upload Actions */
+.upload-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.upload-button {
+  background-color: #0078d4;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  flex: 1;
+}
+
+.upload-button:hover {
+  background-color: #106ebe;
+}
+
+.upload-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.cancel-button {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  flex: 1;
+}
+
+.cancel-button:hover {
+  background-color: #e0e0e0;
+}
+
+/* Upload Status */
+.upload-status {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 4px;
+  background-color: #f0f7ff;
+  border-left: 3px solid #0078d4;
+}
+
+.upload-status.error {
+  background-color: #fde7e9;
+  border-left: 3px solid #d83b01;
+}
+
 /* Responsive adjustments */
 @media (max-width: 650px) {
   .job-form-container {

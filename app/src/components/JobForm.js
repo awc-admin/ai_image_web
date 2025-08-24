@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { BlobServiceClient } from '@azure/storage-blob';
 import './JobForm.css';
+
+// Constants for localStorage keys and upload states
+const UPLOAD_STATE_KEY_PREFIX = 'upload_job_';
+const UPLOAD_STATES = {
+  IDLE: 'idle',
+  CREATING_JOB: 'creating_job',
+  UPLOADING: 'uploading',
+  COMPLETING: 'completing',
+  COMPLETE: 'complete',
+  ERROR: 'error'
+};
 
 /**
  * Job Submission Form Component
  * This component provides a form for users to submit image processing jobs
- * with various configuration options.
+ * with various configuration options and supports resilient file uploads.
  */
 const JobForm = () => {
   // State for all form fields using useState hook
@@ -28,7 +40,17 @@ const JobForm = () => {
   // State for success message and loading state
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
+  // New state for managing uploads
+  const [uploadState, setUploadState] = useState(UPLOAD_STATES.IDLE);
+  const [jobDetails, setJobDetails] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState({
+    total: 0,
+    uploaded: 0,
+    current: null,
+    percentage: 0
+  });
+  
   // Destructure formData for easier access in the JSX
   const { 
     detectionModel, 
@@ -63,6 +85,236 @@ const JobForm = () => {
     
     setErrors(newErrors);
     return isValid;
+  };
+  
+  // LocalStorage utilities for saving and retrieving upload state
+  const saveUploadState = (jobId, fileList, status = UPLOAD_STATES.UPLOADING) => {
+    // Convert FileList to an array of file metadata
+    const files = Array.from(fileList).map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      path: file.webkitRelativePath,
+      status: 'pending' // Initial status for all files
+    }));
+    
+    // Create upload state object
+    const uploadState = {
+      jobId,
+      status,
+      timestamp: Date.now(),
+      files,
+      formData: {
+        detectionModel: formData.detectionModel,
+        email: formData.email,
+        classify: formData.classify,
+        hierarchicalClassificationType: formData.hierarchicalClassificationType,
+        performSmoothing: formData.performSmoothing
+      },
+      uploaded: 0
+    };
+    
+    // Save to localStorage with job ID as key
+    localStorage.setItem(UPLOAD_STATE_KEY_PREFIX + jobId, JSON.stringify(uploadState));
+    return uploadState;
+  };
+  
+  const getUploadState = (jobId) => {
+    const stateJson = localStorage.getItem(UPLOAD_STATE_KEY_PREFIX + jobId);
+    return stateJson ? JSON.parse(stateJson) : null;
+  };
+  
+  const updateFileStatus = (jobId, fileName, newStatus) => {
+    const state = getUploadState(jobId);
+    if (!state) return;
+    
+    // Find and update the file status
+    const updatedFiles = state.files.map(file => {
+      if (file.name === fileName) {
+        return { ...file, status: newStatus };
+      }
+      return file;
+    });
+    
+    // Update the uploaded count
+    const uploadedCount = updatedFiles.filter(file => file.status === 'complete').length;
+    
+    // Save the updated state
+    localStorage.setItem(
+      UPLOAD_STATE_KEY_PREFIX + jobId, 
+      JSON.stringify({
+        ...state,
+        files: updatedFiles,
+        uploaded: uploadedCount
+      })
+    );
+    
+    return uploadedCount;
+  };
+  
+  const removeUploadState = (jobId) => {
+    localStorage.removeItem(UPLOAD_STATE_KEY_PREFIX + jobId);
+  };
+  
+  const findIncompleteUploads = () => {
+    // Find all upload state keys in localStorage
+    const uploadJobs = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith(UPLOAD_STATE_KEY_PREFIX)) {
+        const state = JSON.parse(localStorage.getItem(key));
+        
+        // Check if the job is incomplete (has pending files)
+        const hasPendingFiles = state.files.some(file => file.status === 'pending');
+        if (hasPendingFiles) {
+          uploadJobs.push(state);
+        }
+      }
+    }
+    
+    // Sort by timestamp (newest first) and return the most recent job
+    return uploadJobs.sort((a, b) => b.timestamp - a.timestamp)[0] || null;
+  };
+
+  // Azure Blob Storage file upload functions
+  const uploadFileToBlobStorage = async (file, sasUrl) => {
+    try {
+      // Extract the URL without the SAS token
+      const urlParts = sasUrl.split('?');
+      const baseUrl = urlParts[0];
+      const sasToken = urlParts.length > 1 ? '?' + urlParts[1] : '';
+      
+      // Extract the container and directory path
+      const urlWithoutProtocol = baseUrl.replace(/^https?:\/\//, '');
+      const [accountAndContainer, ...pathParts] = urlWithoutProtocol.split('/');
+      const [accountWithDomain, container] = accountAndContainer.split('.');
+      const accountName = accountWithDomain.split('.')[0];
+      
+      // Get the directory path to preserve folder structure
+      const blobName = pathParts.join('/') + file.webkitRelativePath;
+      
+      // Create the BlobServiceClient and ContainerClient
+      const blobServiceClient = new BlobServiceClient(
+        `https://${accountName}.blob.core.windows.net${sasToken}`
+      );
+      
+      const containerClient = blobServiceClient.getContainerClient(container);
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+      
+      // Upload the file
+      await blockBlobClient.uploadData(file);
+      return true;
+    } catch (error) {
+      console.error(`Error uploading file ${file.name}:`, error);
+      return false;
+    }
+  };
+  
+  // Function to upload all files in a resilient manner
+  const uploadFiles = async (jobId, sasUrl, files) => {
+    // Get the current upload state from localStorage
+    const state = getUploadState(jobId);
+    if (!state) {
+      setErrors({...errors, api: 'Upload state not found'});
+      setUploadState(UPLOAD_STATES.ERROR);
+      return;
+    }
+    
+    // Find files that are still pending upload
+    const pendingFiles = state.files
+      .filter(f => f.status === 'pending')
+      .map(f => {
+        // Find the matching File object from the FileList
+        return Array.from(files).find(file => file.name === f.name);
+      })
+      .filter(Boolean); // Remove any undefined values
+    
+    // Set initial progress state
+    setUploadProgress({
+      total: state.files.length,
+      uploaded: state.uploaded,
+      current: pendingFiles.length > 0 ? pendingFiles[0].name : null,
+      percentage: Math.round((state.uploaded / state.files.length) * 100)
+    });
+    
+    // Set upload state to uploading
+    setUploadState(UPLOAD_STATES.UPLOADING);
+    
+    // Upload each pending file one by one
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const file = pendingFiles[i];
+      
+      // Update progress
+      setUploadProgress(prev => ({
+        ...prev,
+        current: file.name,
+        percentage: Math.round(((state.uploaded + i) / state.files.length) * 100)
+      }));
+      
+      // Upload the file
+      const success = await uploadFileToBlobStorage(file, sasUrl);
+      
+      if (success) {
+        // Update file status in localStorage
+        const newUploadedCount = updateFileStatus(jobId, file.name, 'complete');
+        
+        // Update progress
+        setUploadProgress(prev => ({
+          ...prev,
+          uploaded: newUploadedCount
+        }));
+      } else {
+        // If upload fails, keep status as pending so we can retry later
+        setErrors({...errors, api: `Failed to upload ${file.name}. You can resume the upload later.`});
+        return;
+      }
+    }
+    
+    // All files uploaded, update state to completing
+    setUploadState(UPLOAD_STATES.COMPLETING);
+    
+    // Call the complete-upload endpoint (to be implemented)
+    try {
+      // In a real implementation, you would call the API endpoint
+      // For now, we'll just simulate success
+      
+      /*
+      const response = await fetch('/api/complete-upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to complete upload');
+      }
+      */
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Upload completed successfully
+      setUploadState(UPLOAD_STATES.COMPLETE);
+      setSubmitSuccess(true);
+      
+      // Remove the upload state from localStorage
+      removeUploadState(jobId);
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => {
+        setSubmitSuccess(false);
+        resetForm();
+        setUploadState(UPLOAD_STATES.IDLE);
+        setJobDetails(null);
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Error completing upload:', error);
+      setErrors({...errors, api: 'Error completing upload. Please try again.'});
+      setUploadState(UPLOAD_STATES.ERROR);
+    }
   };
 
   // Handle changes to any input field
@@ -109,10 +361,20 @@ const JobForm = () => {
       hierarchicalClassificationType: 'off',
       performSmoothing: 'False'
     });
+    
     setErrors({
       files: '',
       email: '',
       api: ''
+    });
+    
+    setUploadState(UPLOAD_STATES.IDLE);
+    setJobDetails(null);
+    setUploadProgress({
+      total: 0,
+      uploaded: 0,
+      current: null,
+      percentage: 0
     });
     
     // Reset the file input element
@@ -122,22 +384,22 @@ const JobForm = () => {
     }
   };
 
-  // Handle form submission
+  // Handle form submission to create a job
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Reset success message and API error
+    // Reset states
     setSubmitSuccess(false);
     setErrors({...errors, api: ''});
     
     // Validate form before submission
     if (!validateForm()) {
-      // Don't proceed if validation fails
       return;
     }
     
     // Set loading state
     setIsSubmitting(true);
+    setUploadState(UPLOAD_STATES.CREATING_JOB);
     
     try {
       // Prepare form data for API
@@ -153,12 +415,8 @@ const JobForm = () => {
       // Log the data being sent to the API
       console.log('Sending data to API:', apiData);
       
-      // For demonstration, we'll use a timeout to simulate the API call
-      // In production, you would use the commented code to make a real API call
-      
-      /*
-      // Send data to API endpoint
-      const response = await fetch('/api/submit-job', {
+      // Make API call to create-job endpoint
+      const response = await fetch('/api/create-job', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,70 +425,116 @@ const JobForm = () => {
       });
       
       // Process response
-      const result = await response.json();
-      
       if (response.ok) {
-        // Show success message
-        setSubmitSuccess(true);
-        // Reset form
-        resetForm();
-        console.log('Job submitted successfully:', result);
+        const result = await response.json();
+        console.log('Job created successfully:', result);
+        
+        // Store job details
+        setJobDetails(result);
+        
+        // Save the upload state to localStorage
+        saveUploadState(result.jobId, formData.files);
+        
+        // Reset the isSubmitting state
+        setIsSubmitting(false);
+        
       } else {
-        // Handle API error
-        setErrors({
-          ...errors,
-          api: result.error || 'An error occurred while submitting the job'
-        });
-        console.error('API error:', result);
-      }
-      */
-      
-      // Simulate API call for demonstration
-      setTimeout(() => {
-        setSubmitSuccess(true);
+        const errorText = await response.text();
+        let errorMessage = 'An error occurred while creating the job';
         
-        // Log the form data to the console
-        console.log('Job Submission Form Data:', formData);
-        
-        // For files, log the number of files and their names
-        if (formData.files) {
-          console.log(`Selected ${formData.files.length} files`);
-          
-          // Convert FileList to Array to use forEach
-          Array.from(formData.files).forEach((file, index) => {
-            if (index < 5) { // Only log first 5 files to avoid console clutter
-              console.log(`- ${file.name} (${Math.round(file.size / 1024)} KB)`);
-            }
-          });
-          
-          if (formData.files.length > 5) {
-            console.log(`... and ${formData.files.length - 5} more files`);
-          }
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+          // If the response is not valid JSON, use the raw text
+          errorMessage = errorText || errorMessage;
         }
         
-        // Reset form after successful submission
-        resetForm();
-        
-        // Hide success message after 5 seconds
-        setTimeout(() => {
-          setSubmitSuccess(false);
-        }, 5000);
-        
-        // Reset loading state
+        setErrors({
+          ...errors,
+          api: errorMessage
+        });
+        setUploadState(UPLOAD_STATES.ERROR);
         setIsSubmitting(false);
-      }, 1500);
+      }
       
     } catch (error) {
       // Handle network error
+      console.error('Network error:', error);
       setErrors({
         ...errors,
         api: 'Network error. Please try again later.'
       });
-      console.error('Network error:', error);
+      setUploadState(UPLOAD_STATES.ERROR);
       setIsSubmitting(false);
     }
   };
+  
+  // Handle starting the upload process
+  const handleStartUpload = async () => {
+    if (!jobDetails || !jobDetails.sasTokenUrl) {
+      setErrors({...errors, api: 'Missing job details or SAS URL'});
+      return;
+    }
+    
+    // Start the upload process
+    await uploadFiles(jobDetails.jobId, jobDetails.sasTokenUrl, formData.files);
+  };
 
+  // useEffect to check for incomplete uploads when component mounts
+  useEffect(() => {
+    // Only check for incomplete uploads if we're in the idle state
+    if (uploadState === UPLOAD_STATES.IDLE) {
+      const incompleteUpload = findIncompleteUploads();
+      
+      if (incompleteUpload) {
+        console.log('Found incomplete upload:', incompleteUpload);
+        
+        // Display a confirmation dialog to the user
+        const shouldResume = window.confirm(
+          `You have an unfinished upload with ${incompleteUpload.files.length} files. ` +
+          `${incompleteUpload.uploaded} of them have been uploaded. ` +
+          'Would you like to resume this upload?'
+        );
+        
+        if (shouldResume) {
+          // Restore form data from the saved state
+          setFormData({
+            files: null, // We'll need to handle this specially
+            ...incompleteUpload.formData
+          });
+          
+          // Set job details
+          setJobDetails({
+            jobId: incompleteUpload.jobId,
+            // We need the real SAS token URL from the server
+            // For now, we'll just simulate it
+            sasTokenUrl: `https://storage.blob.core.windows.net/test-centralised-upload/${incompleteUpload.jobId}?sv=...`,
+            azCopyCommand: `azcopy copy "<local_folder_path>/*" "https://storage.blob.core.windows.net/test-centralised-upload/${incompleteUpload.jobId}?sv=..." --recursive=true`
+          });
+          
+          // Set progress state
+          setUploadProgress({
+            total: incompleteUpload.files.length,
+            uploaded: incompleteUpload.uploaded,
+            current: null,
+            percentage: Math.round((incompleteUpload.uploaded / incompleteUpload.files.length) * 100)
+          });
+          
+          // Show a message to the user
+          setErrors({
+            ...errors,
+            api: `Please select the same directory of files and click "Resume Upload" to continue.`
+          });
+        } else {
+          // User declined to resume, remove the incomplete upload
+          removeUploadState(incompleteUpload.jobId);
+        }
+      }
+    }
+  }, [uploadState]); // eslint-disable-line react-hooks/exhaustive-deps
+  
   return (
     <div className="job-form-container">
       <h2>Submit a New Image Processing Job</h2>
@@ -250,6 +554,78 @@ const JobForm = () => {
         </div>
       )}
       
+      {/* Job Details and Upload Progress */}
+      {jobDetails && (
+        <div className="job-details">
+          <h3>Job Details</h3>
+          <p><strong>Job ID:</strong> {jobDetails.jobId}</p>
+          
+          {/* Upload Progress Bar */}
+          {uploadState === UPLOAD_STATES.UPLOADING && (
+            <div className="upload-progress">
+              <div className="progress-label">
+                Uploading: {uploadProgress.uploaded} of {uploadProgress.total} files ({uploadProgress.percentage}%)
+                {uploadProgress.current && ` - Current: ${uploadProgress.current}`}
+              </div>
+              <div className="progress-bar-container">
+                <div 
+                  className="progress-bar" 
+                  style={{width: `${uploadProgress.percentage}%`}}
+                ></div>
+              </div>
+            </div>
+          )}
+          
+          {/* AzCopy Command for Manual Upload */}
+          <div className="azcopy-command">
+            <h4>AzCopy Command (for manual upload)</h4>
+            <pre>{jobDetails.azCopyCommand}</pre>
+          </div>
+          
+          {/* Upload Buttons */}
+          {uploadState === UPLOAD_STATES.IDLE || uploadState === UPLOAD_STATES.CREATING_JOB ? (
+            <div className="upload-actions">
+              <button
+                type="button"
+                className="upload-button"
+                onClick={handleStartUpload}
+                disabled={uploadState === UPLOAD_STATES.CREATING_JOB}
+              >
+                {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Upload'}
+              </button>
+              <button
+                type="button"
+                className="cancel-button"
+                onClick={resetForm}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : null}
+          
+          {/* Upload Status Message */}
+          {uploadState === UPLOAD_STATES.COMPLETING && (
+            <div className="upload-status">
+              <p>Finalizing upload...</p>
+            </div>
+          )}
+          
+          {uploadState === UPLOAD_STATES.COMPLETE && (
+            <div className="upload-status">
+              <p>Upload completed successfully!</p>
+            </div>
+          )}
+          
+          {uploadState === UPLOAD_STATES.ERROR && (
+            <div className="upload-status error">
+              <p>Upload encountered an error. Please try again.</p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Form - Only show if not uploading */}
+      {(uploadState === UPLOAD_STATES.IDLE) && (
       <form onSubmit={handleSubmit} className="job-form">
         {/* File Upload Field */}
         <div className={`form-group ${errors.files ? 'has-error' : ''}`}>
@@ -371,10 +747,11 @@ const JobForm = () => {
             className="submit-button"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Job'}
+            {isSubmitting ? 'Creating Job...' : 'Create Job'}
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 };
