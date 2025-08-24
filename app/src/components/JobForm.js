@@ -430,10 +430,10 @@ const JobForm = () => {
         // Reset the isSubmitting state
         setIsSubmitting(false);
         
-        // Show a success message that upload is starting automatically
+        // Show a success message
         setErrors({
           ...errors,
-          api: 'Job created successfully. Starting upload automatically...'
+          api: 'Job created successfully! You can now choose to upload directly in the browser or use AzCopy for larger uploads.'
         });
         
         // Add success class to the message
@@ -446,12 +446,6 @@ const JobForm = () => {
         
         // Store current files in a variable to ensure they're available for upload
         const currentFiles = formData.files;
-        
-        // Automatically start the upload process after job creation
-        // Small timeout to ensure UI updates before starting upload
-        setTimeout(() => {
-          uploadFiles(result.jobId, currentFiles);
-        }, 1000);
         
       } else {
         const errorText = await response.text();
@@ -581,6 +575,7 @@ const JobForm = () => {
         <div className="job-details">
           <h3>Job Details</h3>
           <p><strong>Job ID:</strong> {jobDetails.jobId}</p>
+          <p><strong>Status:</strong> Ready for upload</p>
           
           {/* Upload Progress Bar */}
           {uploadState === UPLOAD_STATES.UPLOADING && (
@@ -598,30 +593,59 @@ const JobForm = () => {
             </div>
           )}
           
-          {/* AzCopy Command for Manual Upload */}
-          <div className="azcopy-command">
-            <h4>AzCopy Command (for manual upload)</h4>
-            <pre>{jobDetails.azCopyCommand}</pre>
-          </div>
-          
-          {/* Upload Buttons */}
+          {/* Upload Options */}
           {uploadState === UPLOAD_STATES.IDLE || uploadState === UPLOAD_STATES.CREATING_JOB ? (
-            <div className="upload-actions">
-              <button
-                type="button"
-                className="upload-button"
-                onClick={handleStartUpload}
-                disabled={uploadState === UPLOAD_STATES.CREATING_JOB}
-              >
-                {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Upload'}
-              </button>
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={resetForm}
-              >
-                Cancel
-              </button>
+            <div className="upload-options">
+              <h4>Choose Upload Method</h4>
+              
+              <div className="option-container">
+                {/* Browser Upload Option */}
+                <div className="upload-option">
+                  <h5>Option 1: Browser Upload</h5>
+                  <p>Best for smaller uploads (up to a few GB total).</p>
+                  
+                  <div className="upload-actions">
+                    <button
+                      type="button"
+                      className="upload-button"
+                      onClick={handleStartUpload}
+                      disabled={uploadState === UPLOAD_STATES.CREATING_JOB}
+                    >
+                      {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Browser Upload'}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* AzCopy Option */}
+                <div className="upload-option">
+                  <h5>Option 2: AzCopy Command (for large uploads)</h5>
+                  <p>Recommended for very large datasets. Copy this command and run it in your terminal:</p>
+                  
+                  <div className="azcopy-command">
+                    <pre>{jobDetails.azCopyCommand}</pre>
+                    <button 
+                      type="button" 
+                      className="copy-button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(jobDetails.azCopyCommand);
+                        alert('AzCopy command copied to clipboard!');
+                      }}
+                    >
+                      Copy to Clipboard
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="upload-actions bottom-actions">
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={resetForm}
+                >
+                  Cancel Job
+                </button>
+              </div>
             </div>
           ) : null}
           
