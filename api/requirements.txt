@@ -1,2 +1,5 @@
 azure-functions
 requests
+azure-cosmos==4.7.0
+azure-storage-blob
+python-dateutil

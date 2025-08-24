@@ -3,6 +3,16 @@
   "Values": {
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "AzureWebJobsStorage": "",
-    "PYTHON_ISOLATE_WORKER_DEPENDENCIES": "0"
+    "PYTHON_ISOLATE_WORKER_DEPENDENCIES": "0",
+    "COSMOS_ENDPOINT": "https://your-cosmos-account.documents.azure.com:443/",
+    "COSMOS_WRITE_KEY": "your-cosmos-primary-key",
+    "STORAGE_ACCOUNT_NAME": "your-storage-account-name",
+    "STORAGE_ACCOUNT_KEY": "your-storage-account-key",
+    "STORAGE_CONTAINER_UPLOAD": "test-centralised-upload",
+    "API_INSTANCE_NAME": "react_web"
+  },
+  "Host": {
+    "CORS": "*",
+    "CORSCredentials": false
   }
 }
