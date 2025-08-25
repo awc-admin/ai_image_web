@@ -158,7 +158,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Create job status entry in Cosmos DB
         status = {
             'request_status': 'created',
-            'message': 'Request received from React web. Pending upload image directory to Blob container'
+            'message': 'Request received from React web'
         }
         
         # Initialize JobStatusTable
