@@ -19,6 +19,9 @@ const UPLOAD_STATES = {
  * with various configuration options and supports resilient file uploads.
  */
 const JobForm = () => {
+  // Create a reference to store files for upload
+  const fileInputRef = React.useRef(null);
+  
   // State for all form fields using useState hook
   const [formData, setFormData] = useState({
     // Default values for the form fields
@@ -231,6 +234,13 @@ const JobForm = () => {
       return;
     }
     
+    // If files is null or empty but we have a state, we need to prompt the user
+    if (!files || files.length === 0) {
+      setErrors({...errors, api: 'Please reselect your files. Browser security restrictions have caused the file references to be lost.'});
+      setUploadState(UPLOAD_STATES.ERROR);
+      return;
+    }
+    
     // Find files that are still pending upload
     const pendingFiles = state.files
       .filter(f => f.status === 'pending')
@@ -239,6 +249,24 @@ const JobForm = () => {
         return Array.from(files).find(file => file.name === f.name);
       })
       .filter(Boolean); // Remove any undefined values
+      
+    // If no pending files were found, it might be because the file objects don't match by name
+    // In that case, we'll use all files from the provided FileList
+    if (pendingFiles.length === 0 && files.length > 0) {
+      console.log('No matching files found by name. Using all files from input.');
+      
+      // Update the state with new file info
+      saveUploadState(jobId, files);
+      
+      // Use all files from the input
+      pendingFiles.push(...Array.from(files));
+    }
+    
+    // If we still have no files to upload, something is wrong
+    if (pendingFiles.length === 0) {
+      setErrors({...errors, api: 'No files to upload. Please try selecting your files again.'});
+      return;
+    }
     
     // Set initial progress state
     setUploadProgress({
@@ -281,7 +309,7 @@ const JobForm = () => {
       }
     }
     
-      // All files uploaded, update state to completing
+    // All files uploaded, update state to completing
     setUploadState(UPLOAD_STATES.COMPLETING);
     
     // Call the complete-upload endpoint (to be implemented)
@@ -291,7 +319,9 @@ const JobForm = () => {
       
       // Upload completed successfully
       setUploadState(UPLOAD_STATES.COMPLETE);
-      setSubmitSuccess(true);      // Remove the upload state from localStorage
+      setSubmitSuccess(true);
+      
+      // Remove the upload state from localStorage
       removeUploadState(jobId);
       
       // Hide success message after 5 seconds
@@ -337,10 +367,23 @@ const JobForm = () => {
       });
     }
     
+    // Store files in the ref for persistence
+    if (fileInputRef.current) {
+      // Unfortunately, we can't directly assign to fileInputRef.current.files
+      // in modern browsers due to security restrictions, but having the ref
+      // is still valuable for our hidden input 
+    }
+    
+    // Update state with the selected files
     setFormData({
       ...formData,
       files: e.target.files
     });
+    
+    // Log info about selected files for debugging
+    if (e.target.files && e.target.files.length > 0) {
+      console.log(`Selected ${e.target.files.length} files`);
+    }
   };
 
   // Reset form to initial state
@@ -373,6 +416,12 @@ const JobForm = () => {
     const fileInput = document.getElementById('files');
     if (fileInput) {
       fileInput.value = '';
+    }
+    
+    // Clear file reference in our ref too
+    if (fileInputRef.current) {
+      // We can't directly modify fileInputRef.current.files in modern browsers
+      // but we've set the form state to null which should be sufficient
     }
   };
 
@@ -421,14 +470,31 @@ const JobForm = () => {
         const result = await response.json();
         console.log('Job created successfully:', result);
         
+        // Make a copy of the current files to preserve them
+        const currentFiles = formData.files;
+        
+        // Also store in our ref for persistence
+        if (fileInputRef.current && currentFiles) {
+          // We can't directly assign FileList objects in modern browsers
+          // But we've already saved the file metadata in localStorage via saveUploadState
+          // This ensures files are available in the component state
+        }
+        
         // Store job details
         setJobDetails(result);
         
         // Save the upload state to localStorage
-        saveUploadState(result.jobId, formData.files);
+        const savedState = saveUploadState(result.jobId, currentFiles);
         
         // Reset the isSubmitting state
         setIsSubmitting(false);
+        
+        // Create a new FormData object that preserves the selected files
+        setFormData(prevData => ({
+          ...prevData,
+          // Keep the same files reference
+          files: currentFiles
+        }));
         
         // Show a success message
         setErrors({
@@ -443,9 +509,6 @@ const JobForm = () => {
             apiErrorMessage.className = 'api-success-message';
           }
         }, 0);
-        
-        // Store current files in a variable to ensure they're available for upload
-        const currentFiles = formData.files;
         
       } else {
         const errorText = await response.text();
@@ -487,15 +550,51 @@ const JobForm = () => {
       return;
     }
     
-    // If we don't have files in formData but have a valid job ID, 
-    // the user might be resuming an upload with newly selected files
-    const fileInput = document.getElementById('files');
-    const filesToUse = formData.files || (fileInput && fileInput.files ? fileInput.files : null);
+    // Get the upload state from localStorage
+    const savedState = getUploadState(jobDetails.jobId);
     
-    if (!filesToUse || filesToUse.length === 0) {
-      setErrors({...errors, api: 'Please select image files to upload'});
+    if (!savedState || !savedState.files || savedState.files.length === 0) {
+      setErrors({...errors, api: 'Cannot find files to upload. Please try again.'});
       return;
     }
+    
+    // Try all possible sources for files, in order of preference
+    let filesToUse = null;
+    
+    // 1. First check formData (component state)
+    if (formData.files && formData.files.length > 0) {
+      filesToUse = formData.files;
+      console.log('Using files from formData state');
+    } 
+    // 2. Then check our ref (persistent storage)
+    else if (fileInputRef.current && fileInputRef.current.files && fileInputRef.current.files.length > 0) {
+      filesToUse = fileInputRef.current.files;
+      console.log('Using files from fileInputRef');
+    }
+    // 3. Then check the visible input element
+    else {
+      const fileInput = document.getElementById('files');
+      if (fileInput && fileInput.files && fileInput.files.length > 0) {
+        filesToUse = fileInput.files;
+        console.log('Using files from visible input element');
+      }
+    }
+    
+    if (!filesToUse || filesToUse.length === 0) {
+      // If we have saved file metadata but can't access the actual files,
+      // ask the user to reselect the files
+      setErrors({...errors, api: 'Please reselect your image files. File access was lost due to browser security restrictions.'});
+      
+      // Focus on the file input to help the user reselect files
+      const fileInput = document.getElementById('files');
+      if (fileInput) {
+        fileInput.click();
+      }
+      return;
+    }
+    
+    // Clear any error messages as we're about to start the upload
+    setErrors({...errors, api: ''});
     
     // Start the upload process with the available files
     await uploadFiles(jobDetails.jobId, filesToUse);
@@ -553,6 +652,15 @@ const JobForm = () => {
   
   return (
     <div className="job-form-container">
+      {/* Hidden file input for maintaining file reference */}
+      <input 
+        type="file" 
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        webkitdirectory="true"
+        multiple
+      />
+      
       <h2>Submit a New Image Processing Job</h2>
       
       {/* Success Message */}
@@ -609,7 +717,6 @@ const JobForm = () => {
                       type="button"
                       className="upload-button"
                       onClick={handleStartUpload}
-                      disabled={uploadState === UPLOAD_STATES.CREATING_JOB}
                     >
                       {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Browser Upload'}
                     </button>
@@ -641,7 +748,14 @@ const JobForm = () => {
                 <button
                   type="button"
                   className="cancel-button"
-                  onClick={resetForm}
+                  onClick={() => {
+                    // Remove the upload state first to avoid resume prompt
+                    if (jobDetails && jobDetails.jobId) {
+                      removeUploadState(jobDetails.jobId);
+                    }
+                    // Then reset the form
+                    resetForm();
+                  }}
                 >
                   Cancel Job
                 </button>

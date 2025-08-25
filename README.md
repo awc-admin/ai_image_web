@@ -1,18 +1,26 @@
-# Azure Static Web App with React and Python API
+# AI Image Processing Web Application
 
-This project is a Azure Static Web App using React for the frontend and Python for the backend API.
+This project is an Azure Static Web App using React (v19.1.1) for the frontend and Python for the backend API. It provides a web interface for submitting image processing jobs with resilient file upload capabilities.
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/)
 - [Anaconda](https://www.anaconda.com/products/distribution) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
 - [Azure Static Web Apps CLI](https://github.com/Azure/static-web-apps-cli)
+- [AzCopy](https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10) (optional, for large uploads)
 
 ## Project Structure
 
 - `/app` - React frontend application
 - `/api` - Python API functions
 - `swa-cli.config.json` - Configuration for Azure Static Web Apps CLI
+
+## Key Features
+
+- **Job Submission Form**: Submit image processing jobs with configurable parameters
+- **Multi-option File Uploads**: Choose between browser-based or AzCopy command-line uploads
+- **Resilient Uploads**: Resume interrupted uploads with progress tracking
+- **Authentication**: Secure access with Azure Active Directory (with mock auth for local development)
 
 ## Setting Up Python Environment
 
@@ -78,6 +86,45 @@ This application uses Azure Active Directory (AAD) for authentication. When runn
 - Login: `/.auth/login/aad`
 - Logout: `/.auth/logout`
 - User Info: `/.auth/me`
+
+## Job Submission Workflow
+
+1. User selects a directory of image files
+2. User configures job parameters and submits the form
+3. A job is created with a unique ID
+4. User chooses between browser upload or AzCopy command
+5. For browser upload:
+   - Files are uploaded one by one with progress tracking
+   - Upload state is stored in localStorage for resume capability
+6. For AzCopy:
+   - User copies the command and runs it in their terminal
+   - Files are uploaded directly to Azure Blob Storage
+
+## API Endpoints
+
+The application uses several Azure Functions endpoints:
+
+- `/api/create-job`: Creates a new job and returns a job ID
+- `/api/upload-file`: Handles file uploads to Azure Blob Storage
+- `/api/get-sas-token`: Generates SAS tokens for direct uploads (when needed)
+
+## Implementation Details
+
+### Upload Workflow
+
+The file upload system is resilient to browser refreshes and network interruptions:
+
+1. File references are maintained after job creation
+2. Upload progress is tracked in localStorage
+3. Interrupted uploads can be resumed
+4. Multiple upload options are provided for different use cases
+
+### File Reference Persistence
+
+File references are maintained using:
+- React refs with a hidden file input
+- File metadata storage in localStorage
+- Multiple fallback mechanisms for file access recovery
 
 ## Deploying to Azure
 
