@@ -318,6 +318,22 @@
   justify-content: center;
 }
 
+.bottom-actions .go-back-button {
+  padding: 10px 15px;
+  background-color: #0078d4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.bottom-actions .go-back-button:hover {
+  background-color: #106ebe;
+}
+
 .upload-button {
   background-color: #0078d4;
   color: white;
@@ -366,6 +382,23 @@
   border-radius: 4px;
   background-color: #f0f7ff;
   border-left: 3px solid #0078d4;
+}
+
+.upload-status .go-back-button {
+  margin-top: 15px;
+  padding: 10px 15px;
+  background-color: #0078d4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.2s ease;
+}
+
+.upload-status .go-back-button:hover {
+  background-color: #106ebe;
 }
 
 .upload-status.error {

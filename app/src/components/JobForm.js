@@ -324,13 +324,8 @@ const JobForm = () => {
       // Remove the upload state from localStorage
       removeUploadState(jobId);
       
-      // Hide success message after 5 seconds
-      setTimeout(() => {
-        setSubmitSuccess(false);
-        resetForm();
-        setUploadState(UPLOAD_STATES.IDLE);
-        setJobDetails(null);
-      }, 5000);
+      // We keep the success message visible indefinitely and provide a button to go back
+      // No more automatic timeout reset
       
     } catch (error) {
       console.error('Error completing upload:', error);
@@ -702,7 +697,7 @@ const JobForm = () => {
           )}
           
           {/* Upload Options */}
-          {uploadState === UPLOAD_STATES.IDLE || uploadState === UPLOAD_STATES.CREATING_JOB ? (
+          {(uploadState === UPLOAD_STATES.IDLE || uploadState === UPLOAD_STATES.CREATING_JOB || (jobDetails && uploadState !== UPLOAD_STATES.UPLOADING && uploadState !== UPLOAD_STATES.COMPLETING && uploadState !== UPLOAD_STATES.COMPLETE && uploadState !== UPLOAD_STATES.ERROR)) ? (
             <div className="upload-options">
               <h4>Choose Upload Method</h4>
               
@@ -747,7 +742,7 @@ const JobForm = () => {
               <div className="upload-actions bottom-actions">
                 <button
                   type="button"
-                  className="cancel-button"
+                  className="go-back-button"
                   onClick={() => {
                     // Remove the upload state first to avoid resume prompt
                     if (jobDetails && jobDetails.jobId) {
@@ -757,7 +752,7 @@ const JobForm = () => {
                     resetForm();
                   }}
                 >
-                  Cancel Job
+                  Submit another job
                 </button>
               </div>
             </div>
@@ -772,7 +767,24 @@ const JobForm = () => {
           
           {uploadState === UPLOAD_STATES.COMPLETE && (
             <div className="upload-status">
-              <p>Upload completed successfully!</p>
+              <h4>Upload completed successfully!</h4>
+              <p>Your job has been submitted and all files were uploaded successfully. The AI processing will begin shortly.</p>
+              {formData.email && (
+                <p>You will receive an email at <strong>{formData.email}</strong> when processing is complete.</p>
+              )}
+              <p>Job ID: <strong>{jobDetails.jobId}</strong></p>
+              <button
+                type="button"
+                className="go-back-button"
+                onClick={() => {
+                  setSubmitSuccess(false);
+                  resetForm();
+                  setUploadState(UPLOAD_STATES.IDLE);
+                  setJobDetails(null);
+                }}
+              >
+                Submit another job
+              </button>
             </div>
           )}
           
