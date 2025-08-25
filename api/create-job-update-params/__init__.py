@@ -8,7 +8,7 @@ import azure.functions as func
 # Configuration constants - these would be loaded from environment variables in production
 COSMOS_ENDPOINT = os.environ.get('COSMOS_ENDPOINT')
 COSMOS_WRITE_KEY = os.environ.get('COSMOS_WRITE_KEY')
-API_INSTANCE_NAME = os.environ.get('API_INSTANCE_NAME', 'react_web')
+API_INSTANCE_NAME = os.environ.get('API_INSTANCE_NAME', 'web')
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request to update job parameters.')

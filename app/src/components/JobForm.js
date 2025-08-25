@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BlobServiceClient } from '@azure/storage-blob';
 import './JobForm.css';
-import { getUserEmail } from '../utils/mockAuth';
+import { getUserEmail, getUserId } from '../utils/mockAuth';
 
 // Constants for localStorage keys and upload states
 const UPLOAD_STATE_KEY_PREFIX = 'upload_job_';
@@ -154,10 +154,11 @@ const JobForm = () => {
         classify: formData.classify,
         hitax_type: formData.hierarchicalClassificationType,
         do_smoothing: formData.performSmoothing,
-        // Add the new fields
+        // Add the additional fields
         image_path_prefix: imagePath,
         request_name: '',  // Will be updated later when we have the actual user ID
-        input_container_sas: ''  // Will be updated later when we have the SAS URL
+        input_container_sas: '',  // Will be updated later when we have the SAS URL
+        api_instance_name: 'web'  // Set the api_instance_name field
       },
       uploaded: 0,
       num_images: files.filter(file => {
@@ -551,7 +552,7 @@ const JobForm = () => {
       }
       
       // Get the user ID from AD (for request_name)
-      const userData = await getUserEmail();
+      const userId = await getUserId();
       
       // Prepare form data for API with renamed parameters
       const apiData = {
@@ -561,9 +562,10 @@ const JobForm = () => {
         hitax_type: formData.hierarchicalClassificationType,
         do_smoothing: formData.performSmoothing,
         num_images: imageCount,
-        // Add the three new fields
+        // Add the additional fields
         image_path_prefix: imagePath,
-        request_name: userData  // This will be updated with actual SAS URL after API response
+        request_name: userId,  // Use the userId from Azure AD
+        api_instance_name: 'web'  // Add the api_instance_name field
       };
       
       // Log the data being sent to the API
@@ -626,14 +628,15 @@ const JobForm = () => {
         // Save the upload state to localStorage with updated SAS URL and user ID
         const savedState = saveUploadState(result.jobId, currentFiles);
         
-        // Update the saved state with the SAS URL
+        // Update the saved state with the SAS URL and userId
         if (savedState) {
           const updatedState = {
             ...savedState,
             formData: {
               ...savedState.formData,
               input_container_sas: result.sasTokenUrl,
-              request_name: userData
+              request_name: userId,
+              api_instance_name: 'web'
             }
           };
           localStorage.setItem(UPLOAD_STATE_KEY_PREFIX + result.jobId, JSON.stringify(updatedState));

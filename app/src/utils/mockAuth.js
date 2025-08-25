@@ -83,3 +83,19 @@ export const getUserEmail = async () => {
     return null;
   }
 };
+
+/**
+ * Get the current user's ID from Azure AD
+ * This utility function extracts the userId from the user data
+ */
+export const getUserId = async () => {
+  try {
+    // In a real environment, we'd call /.auth/me
+    // Here we're just returning the mock data
+    const userData = getMockUser();
+    return userData.clientPrincipal.userId || null;
+  } catch (error) {
+    console.error('Error getting user ID:', error);
+    return null;
+  }
+};

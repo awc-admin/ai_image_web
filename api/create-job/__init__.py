@@ -14,7 +14,7 @@ COSMOS_WRITE_KEY = os.environ.get('COSMOS_WRITE_KEY')
 STORAGE_ACCOUNT_NAME = os.environ.get('STORAGE_ACCOUNT_NAME')
 STORAGE_ACCOUNT_KEY = os.environ.get('STORAGE_ACCOUNT_KEY')
 STORAGE_CONTAINER_UPLOAD = os.environ.get('STORAGE_CONTAINER_UPLOAD', 'test-centralised-upload')
-API_INSTANCE_NAME = os.environ.get('API_INSTANCE_NAME', 'react_web')
+API_INSTANCE_NAME = os.environ.get('API_INSTANCE_NAME', 'web')
 
 def get_utc_time() -> str:
     """
