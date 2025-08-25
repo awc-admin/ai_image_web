@@ -128,6 +128,20 @@ const JobForm = () => {
       status: 'pending' // Initial status for all files
     }));
     
+    // Extract the top-level folder name from the webkitRelativePath
+    let imagePath = '';
+    if (files && files.length > 0) {
+      // Get the first file's path
+      const firstFile = files[0];
+      if (firstFile.webkitRelativePath) {
+        // Extract the top-level folder name (first part of the path)
+        const pathParts = firstFile.webkitRelativePath.split('/');
+        if (pathParts.length > 0) {
+          imagePath = pathParts[0];
+        }
+      }
+    }
+    
     // Create upload state object with renamed parameters to match API
     const uploadState = {
       jobId,
@@ -139,7 +153,11 @@ const JobForm = () => {
         model_version: formData.detectionModel,
         classify: formData.classify,
         hitax_type: formData.hierarchicalClassificationType,
-        do_smoothing: formData.performSmoothing
+        do_smoothing: formData.performSmoothing,
+        // Add the new fields
+        image_path_prefix: imagePath,
+        request_name: '',  // Will be updated later when we have the actual user ID
+        input_container_sas: ''  // Will be updated later when we have the SAS URL
       },
       uploaded: 0,
       num_images: files.filter(file => {
@@ -518,6 +536,23 @@ const JobForm = () => {
       const imageFiles = Array.from(formData.files || []).filter(file => isImageFile(file));
       const imageCount = imageFiles.length;
       
+      // Extract the top-level folder name from the webkitRelativePath
+      let imagePath = '';
+      if (formData.files && formData.files.length > 0) {
+        // Get the first file's path
+        const firstFile = formData.files[0];
+        if (firstFile.webkitRelativePath) {
+          // Extract the top-level folder name (first part of the path)
+          const pathParts = firstFile.webkitRelativePath.split('/');
+          if (pathParts.length > 0) {
+            imagePath = pathParts[0];
+          }
+        }
+      }
+      
+      // Get the user ID from AD (for request_name)
+      const userData = await getUserEmail();
+      
       // Prepare form data for API with renamed parameters
       const apiData = {
         email: userEmail,
@@ -525,7 +560,10 @@ const JobForm = () => {
         classify: formData.classify,
         hitax_type: formData.hierarchicalClassificationType,
         do_smoothing: formData.performSmoothing,
-        num_images: imageCount
+        num_images: imageCount,
+        // Add the three new fields
+        image_path_prefix: imagePath,
+        request_name: userData  // This will be updated with actual SAS URL after API response
       };
       
       // Log the data being sent to the API
@@ -544,6 +582,27 @@ const JobForm = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('Job created successfully:', result);
+        
+        // Update the apiData with the SAS URL received from the server
+        apiData.input_container_sas = result.sasTokenUrl;
+        
+        // Update the API data in Cosmos DB with the SAS URL
+        try {
+          // Make a follow-up API call to update the job with the SAS URL
+          const updateResponse = await fetch(`/api/create-job/${result.jobId}/update-params`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(apiData)
+          });
+          
+          if (!updateResponse.ok) {
+            console.warn('Failed to update job with SAS URL, but continuing with job creation');
+          }
+        } catch (updateError) {
+          console.warn('Error updating job with SAS URL, but continuing with job creation:', updateError);
+        }
         
         // Make a copy of the current files to preserve them
         const currentFiles = formData.files;
@@ -564,8 +623,21 @@ const JobForm = () => {
         // Store job details
         setJobDetails(enhancedResult);
         
-        // Save the upload state to localStorage
+        // Save the upload state to localStorage with updated SAS URL and user ID
         const savedState = saveUploadState(result.jobId, currentFiles);
+        
+        // Update the saved state with the SAS URL
+        if (savedState) {
+          const updatedState = {
+            ...savedState,
+            formData: {
+              ...savedState.formData,
+              input_container_sas: result.sasTokenUrl,
+              request_name: userData
+            }
+          };
+          localStorage.setItem(UPLOAD_STATE_KEY_PREFIX + result.jobId, JSON.stringify(updatedState));
+        }
         
         // Reset the isSubmitting state
         setIsSubmitting(false);
