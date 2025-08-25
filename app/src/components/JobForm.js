@@ -41,6 +41,9 @@ const JobForm = () => {
     api: ''
   });
   
+  // State for API message type (success or error)
+  const [apiMessageType, setApiMessageType] = useState('error');
+  
   // State for success message and loading state
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -449,6 +452,9 @@ const JobForm = () => {
       api: ''
     });
     
+    // Reset API message type to default (error)
+    setApiMessageType('error');
+    
     setUploadState(UPLOAD_STATES.IDLE);
     setJobDetails(null);
     setUploadProgress({
@@ -571,19 +577,12 @@ const JobForm = () => {
           files: currentFiles
         }));
         
-        // Show a success message
+        // Show a success message with success styling
+        setApiMessageType('success');
         setErrors({
           ...errors,
           api: 'Job created successfully! You can now choose to upload directly in the browser or use AzCopy for larger uploads.'
         });
-        
-        // Add success class to the message
-        setTimeout(() => {
-          const apiErrorMessage = document.querySelector('.api-error-message');
-          if (apiErrorMessage) {
-            apiErrorMessage.className = 'api-success-message';
-          }
-        }, 0);
         
       } else {
         const errorText = await response.text();
@@ -598,6 +597,7 @@ const JobForm = () => {
           errorMessage = errorText || errorMessage;
         }
         
+        setApiMessageType('error');
         setErrors({
           ...errors,
           api: errorMessage
@@ -609,6 +609,7 @@ const JobForm = () => {
     } catch (error) {
       // Handle network error
       console.error('Network error:', error);
+      setApiMessageType('error');
       setErrors({
         ...errors,
         api: 'Network error. Please try again later.'
@@ -750,9 +751,9 @@ const JobForm = () => {
         </div>
       )}
       
-      {/* API Error Message */}
+      {/* API Message (Error or Success) */}
       {errors.api && (
-        <div className="api-error-message">
+        <div className={apiMessageType === 'success' ? "api-success-message" : "api-error-message"}>
           {errors.api}
         </div>
       )}
