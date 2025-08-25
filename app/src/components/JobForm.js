@@ -132,11 +132,13 @@ const JobForm = () => {
       timestamp: Date.now(),
       files,
       formData: {
-        model_version: formData.detectionModel,
-        email: formData.email,
-        classify: formData.classify,
-        hitax_type: formData.hierarchicalClassificationType,
-        do_smoothing: formData.performSmoothing
+        call_params: {
+          email: formData.email,
+          model_version: formData.detectionModel,
+          classify: formData.classify,
+          hitax_type: formData.hierarchicalClassificationType,
+          do_smoothing: formData.performSmoothing
+        }
       },
       uploaded: 0,
       num_images: files.filter(file => {
@@ -514,14 +516,14 @@ const JobForm = () => {
       
       // Prepare form data for API with renamed parameters
       const apiData = {
-        email: userEmail,
         call_params: {
+          email: userEmail,
           model_version: formData.detectionModel,          // Renamed from detectionModel
           classify: formData.classify,
           hitax_type: formData.hierarchicalClassificationType,  // Renamed from hierarchicalClassificationType
           do_smoothing: formData.performSmoothing         // Renamed from performSmoothing
         },
-        num_images: imageCount  // Moved outside call_params and renamed from fileCount
+        num_images: imageCount  // At the same level as call_params and renamed from fileCount
       };
       
       // Log the data being sent to the API
@@ -695,9 +697,14 @@ const JobForm = () => {
         
         if (shouldResume) {
           // Restore form data from the saved state
+          const callParams = incompleteUpload.formData.call_params || {};
           setFormData({
             files: null, // We'll need to handle this specially
-            ...incompleteUpload.formData
+            detectionModel: callParams.model_version || '1000-redwood',
+            email: callParams.email || '',
+            classify: callParams.classify || 'False',
+            hierarchicalClassificationType: callParams.hitax_type || 'off',
+            performSmoothing: callParams.do_smoothing || 'False'
           });
           
           // Set job details
