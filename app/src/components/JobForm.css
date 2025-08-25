@@ -43,6 +43,13 @@
   margin-left: 5px;
 }
 
+.form-hint {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
 .form-input,
 .form-select {
   padding: 0.75rem;
@@ -113,6 +120,15 @@
   font-size: 0.85rem;
   margin-top: 0.25rem;
   font-weight: 500;
+}
+
+/* For non-critical messages like notes about ignored files */
+.info-message {
+  color: #0078d4;
+  font-style: italic;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  font-weight: normal;
 }
 
 /* Success message styling */

@@ -70,15 +70,32 @@ const JobForm = () => {
     return emailRegex.test(email);
   };
   
+  // Helper to check if a file is an image
+  const isImageFile = (file) => {
+    // List of common image file extensions
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.svg'];
+    const fileName = file.name.toLowerCase();
+    return imageExtensions.some(ext => fileName.endsWith(ext));
+  };
+
   // Validate form before submission
   const validateForm = () => {
     let isValid = true;
     const newErrors = { files: '', email: '' };
     
-    // Validate files
-    if (!formData.files || formData.files.length === 0) {
-      newErrors.files = 'You must select at least one file';
+    // Get only image files from the selection
+    const allFiles = Array.from(formData.files || []);
+    const imageFiles = allFiles.filter(file => isImageFile(file));
+    const nonImageFiles = allFiles.filter(file => !isImageFile(file));
+    
+    // Validate that we have at least one image file
+    if (!formData.files || formData.files.length === 0 || imageFiles.length === 0) {
+      newErrors.files = 'You must select at least one image file';
       isValid = false;
+    } else if (nonImageFiles.length > 0) {
+      // Just show a warning about non-image files but don't prevent submission
+      newErrors.files = `Note: ${nonImageFiles.length} non-image files will be ignored.`;
+      // This is just a warning, not an error, so we don't set isValid to false
     }
     
     // Validate email (optional, but must be valid if provided)
@@ -108,20 +125,26 @@ const JobForm = () => {
       status: 'pending' // Initial status for all files
     }));
     
-    // Create upload state object
+    // Create upload state object with renamed parameters to match API
     const uploadState = {
       jobId,
       status,
       timestamp: Date.now(),
       files,
       formData: {
-        detectionModel: formData.detectionModel,
+        model_version: formData.detectionModel,
         email: formData.email,
         classify: formData.classify,
-        hierarchicalClassificationType: formData.hierarchicalClassificationType,
-        performSmoothing: formData.performSmoothing
+        hitax_type: formData.hierarchicalClassificationType,
+        do_smoothing: formData.performSmoothing
       },
-      uploaded: 0
+      uploaded: 0,
+      num_images: files.filter(file => {
+        // Check if it's an image file by extension
+        const fileName = file.name.toLowerCase();
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.webp', '.svg'];
+        return imageExtensions.some(ext => fileName.endsWith(ext));
+      }).length
     };
     
     // Save to localStorage with job ID as key
@@ -258,7 +281,8 @@ const JobForm = () => {
         // Find the matching File object from the FileList
         return Array.from(files).find(file => file.name === f.name);
       })
-      .filter(Boolean); // Remove any undefined values
+      .filter(Boolean) // Remove any undefined values
+      .filter(file => isImageFile(file)); // Only include image files
       
     // If no pending files were found, it might be because the file objects don't match by name
     // In that case, we'll use all files from the provided FileList
@@ -383,7 +407,20 @@ const JobForm = () => {
       // is still valuable for our hidden input 
     }
     
-    // Update state with the selected files
+    // Filter out non-image files
+    const allFiles = Array.from(e.target.files || []);
+    const imageFiles = allFiles.filter(file => isImageFile(file));
+    
+    // If there were non-image files, show an informational message
+    if (imageFiles.length < allFiles.length) {
+      const nonImageCount = allFiles.length - imageFiles.length;
+      setErrors({
+        ...errors,
+        files: `Note: ${nonImageCount} non-image files will be ignored.`
+      });
+    }
+    
+    // Update state with the selected files (all files for now, we'll filter during upload)
     setFormData({
       ...formData,
       files: e.target.files
@@ -391,7 +428,7 @@ const JobForm = () => {
     
     // Log info about selected files for debugging
     if (e.target.files && e.target.files.length > 0) {
-      console.log(`Selected ${e.target.files.length} files`);
+      console.log(`Selected ${e.target.files.length} files (${imageFiles.length} image files)`);
     }
   };
 
@@ -447,6 +484,16 @@ const JobForm = () => {
       return;
     }
     
+    // Make sure we have at least one image file
+    const imageFiles = Array.from(formData.files || []).filter(file => isImageFile(file));
+    if (imageFiles.length === 0) {
+      setErrors({
+        ...errors,
+        files: 'You must select at least one image file'
+      });
+      return;
+    }
+    
     // Set loading state
     setIsSubmitting(true);
     setUploadState(UPLOAD_STATES.CREATING_JOB);
@@ -461,14 +508,20 @@ const JobForm = () => {
         console.log('Using email from Azure AD:', userEmail);
       }
       
-      // Prepare form data for API
+      // Count only image files
+      const imageFiles = Array.from(formData.files || []).filter(file => isImageFile(file));
+      const imageCount = imageFiles.length;
+      
+      // Prepare form data for API with renamed parameters
       const apiData = {
         email: userEmail,
-        detectionModel: formData.detectionModel,
-        classify: formData.classify,
-        hierarchicalClassificationType: formData.hierarchicalClassificationType,
-        performSmoothing: formData.performSmoothing,
-        fileCount: formData.files ? formData.files.length : 0
+        call_params: {
+          model_version: formData.detectionModel,          // Renamed from detectionModel
+          classify: formData.classify,
+          hitax_type: formData.hierarchicalClassificationType,  // Renamed from hierarchicalClassificationType
+          do_smoothing: formData.performSmoothing         // Renamed from performSmoothing
+        },
+        num_images: imageCount  // Moved outside call_params and renamed from fileCount
       };
       
       // Log the data being sent to the API
@@ -840,23 +893,49 @@ const JobForm = () => {
             webkitdirectory="true"
             multiple
             className="file-input"
+            accept="image/*"
           />
-          {errors.files && <div className="error-message">{errors.files}</div>}
+          <div className="form-hint">Only image files (JPG, JPEG, PNG, GIF, etc.) will be processed.</div>
+          {errors.files && (
+            <div className={errors.files.startsWith('Note:') ? 'info-message' : 'error-message'}>
+              {errors.files}
+            </div>
+          )}
           {formData.files && formData.files.length > 0 && (
             <div className="file-info">
-              <div><strong>{formData.files.length} files selected</strong></div>
+              {/* Display counts of image files vs. total files */}
+              {(() => {
+                const totalFiles = formData.files.length;
+                const imageFiles = Array.from(formData.files).filter(file => isImageFile(file));
+                const imageCount = imageFiles.length;
+                
+                return (
+                  <div>
+                    <strong>
+                      {imageCount} image {imageCount === 1 ? 'file' : 'files'} selected
+                      {totalFiles > imageCount && ` (${totalFiles - imageCount} non-image files will be ignored)`}
+                    </strong>
+                  </div>
+                );
+              })()}
+              
               {formData.files.length > 0 && (
                 <div className="file-preview">
-                  {Array.from(formData.files).slice(0, 3).map((file, index) => (
-                    <div key={index} className="file-item">
-                      <span className="file-name">
-                        {file.webkitRelativePath ? file.webkitRelativePath : file.name}
-                      </span>
-                      <span className="file-size">({Math.round(file.size / 1024)} KB)</span>
-                    </div>
-                  ))}
-                  {formData.files.length > 3 && (
-                    <div className="file-more">...and {formData.files.length - 3} more files</div>
+                  {/* Show only image files in the preview */}
+                  {Array.from(formData.files)
+                    .filter(file => isImageFile(file))
+                    .slice(0, 3)
+                    .map((file, index) => (
+                      <div key={index} className="file-item">
+                        <span className="file-name">
+                          {file.webkitRelativePath ? file.webkitRelativePath : file.name}
+                        </span>
+                        <span className="file-size">({Math.round(file.size / 1024)} KB)</span>
+                      </div>
+                    ))
+                  }
+                  {Array.from(formData.files).filter(file => isImageFile(file)).length > 3 && (
+                    <div className="file-more">...and {Array.from(formData.files).filter(file => isImageFile(file)).length - 3} more image files</div>
                   )}
                 </div>
               )}
@@ -864,9 +943,9 @@ const JobForm = () => {
           )}
         </div>
 
-        {/* Detection Model Dropdown */}
+        {/* Detection Model Dropdown (model_version in API) */}
         <div className="form-group">
-          <label htmlFor="detectionModel">Detection Model:</label>
+          <label htmlFor="detectionModel">Model Version:</label>
           <select
             id="detectionModel"
             name="detectionModel"
@@ -912,9 +991,9 @@ const JobForm = () => {
         {/* Conditional Fields - only shown when Classify is True */}
         {classify === 'True' && (
           <>
-            {/* Hierarchical Classification Type Dropdown */}
+            {/* Hierarchical Classification Type Dropdown (hitax_type in API) */}
             <div className="form-group">
-              <label htmlFor="hierarchicalClassificationType">Hierarchical Classification Type:</label>
+              <label htmlFor="hierarchicalClassificationType">Hitax Type:</label>
               <select
                 id="hierarchicalClassificationType"
                 name="hierarchicalClassificationType"
@@ -928,9 +1007,9 @@ const JobForm = () => {
               </select>
             </div>
 
-            {/* Perform Smoothing Dropdown */}
+            {/* Perform Smoothing Dropdown (do_smoothing in API) */}
             <div className="form-group">
-              <label htmlFor="performSmoothing">Perform Smoothing:</label>
+              <label htmlFor="performSmoothing">Do Smoothing:</label>
               <select
                 id="performSmoothing"
                 name="performSmoothing"
