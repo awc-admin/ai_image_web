@@ -32,14 +32,11 @@ window.fetch = async (url, options) => {
     const isAuthenticated = localStorage.getItem('mockAuthStatus') === 'authenticated';
     
     if (isAuthenticated) {
+      // Import data from our mockAuth.js to maintain consistency
+      const { getMockUser } = require('./utils/mockAuth');
       return {
         ok: true,
-        json: async () => ({ clientPrincipal: {
-          identityProvider: "aad",
-          userId: "test-user-id", 
-          userDetails: "test@example.com",
-          userRoles: ["authenticated"]
-        }})
+        json: async () => getMockUser()
       };
     } else {
       return {

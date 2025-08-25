@@ -8,9 +8,14 @@
 // Mock user data - this simulates what Azure Static Web Apps would provide
 const mockUserData = {
   identityProvider: "aad",
-  userId: "test-user-id",
-  userDetails: "test@example.com",
-  userRoles: ["authenticated"]
+  userId: "john.doe@contoso.com",
+  userDetails: "john.doe@contoso.com", // This is the user's email in Azure AD
+  userRoles: ["authenticated"],
+  claims: [
+    { typ: "name", val: "John Doe" },
+    { typ: "emails", val: "john.doe@contoso.com" },
+    { typ: "preferred_username", val: "john.doe@contoso.com" }
+  ]
 };
 
 /**
@@ -61,4 +66,20 @@ export const getMockUser = () => {
   return {
     clientPrincipal: mockUserData
   };
+};
+
+/**
+ * Get the current user's email address
+ * This utility function extracts the email from the user data
+ */
+export const getUserEmail = async () => {
+  try {
+    // In a real environment, we'd call /.auth/me
+    // Here we're just returning the mock data
+    const userData = getMockUser();
+    return userData.clientPrincipal.userDetails || null;
+  } catch (error) {
+    console.error('Error getting user email:', error);
+    return null;
+  }
 };

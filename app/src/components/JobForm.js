@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BlobServiceClient } from '@azure/storage-blob';
 import './JobForm.css';
+import { getUserEmail } from '../utils/mockAuth';
 
 // Constants for localStorage keys and upload states
 const UPLOAD_STATE_KEY_PREFIX = 'upload_job_';
@@ -438,9 +439,18 @@ const JobForm = () => {
     setUploadState(UPLOAD_STATES.CREATING_JOB);
     
     try {
+      // If no email is provided, try to get it from the user's AD profile
+      let userEmail = formData.email;
+      
+      if (!userEmail || userEmail.trim() === '') {
+        // Try to get the user email from AD
+        userEmail = await getUserEmail();
+        console.log('Using email from Azure AD:', userEmail);
+      }
+      
       // Prepare form data for API
       const apiData = {
-        email: formData.email,
+        email: userEmail,
         detectionModel: formData.detectionModel,
         classify: formData.classify,
         hierarchicalClassificationType: formData.hierarchicalClassificationType,
@@ -475,8 +485,14 @@ const JobForm = () => {
           // This ensures files are available in the component state
         }
         
+        // Add the user email to the job details
+        const enhancedResult = {
+          ...result,
+          userEmail: userEmail || await getUserEmail() // Make sure we have the email
+        };
+        
         // Store job details
-        setJobDetails(result);
+        setJobDetails(enhancedResult);
         
         // Save the upload state to localStorage
         const savedState = saveUploadState(result.jobId, currentFiles);
@@ -769,8 +785,10 @@ const JobForm = () => {
             <div className="upload-status">
               <h4>Upload completed successfully!</h4>
               <p>Your job has been submitted and all files were uploaded successfully. The AI processing will begin shortly.</p>
-              {formData.email && (
-                <p>You will receive an email at <strong>{formData.email}</strong> when processing is complete.</p>
+              {formData.email ? (
+                <p>You will receive an email at <strong>{formData.email}</strong> (provided by you) when processing is complete.</p>
+              ) : (
+                <p>You will receive an email at <strong>{jobDetails.userEmail || 'your AD email address'}</strong> (from your Azure AD account) when processing is complete.</p>
               )}
               <p>Job ID: <strong>{jobDetails.jobId}</strong></p>
               <button
@@ -848,14 +866,14 @@ const JobForm = () => {
 
         {/* Email Field */}
         <div className={`form-group ${errors.email ? 'has-error' : ''}`}>
-          <label htmlFor="email">Email:</label>
+          <label htmlFor="email">Email: <span className="optional-label">(optional - will use your AD email if empty)</span></label>
           <input
             type="email"
             id="email"
             name="email"
             value={email}
             onChange={handleInputChange}
-            placeholder="Enter your email address (optional)"
+            placeholder="Enter your email address or leave empty to use AD email"
             className="form-input"
           />
           {errors.email && <div className="error-message">{errors.email}</div>}
