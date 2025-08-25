@@ -103,7 +103,8 @@ const JobForm = () => {
       name: file.name,
       size: file.size,
       type: file.type,
-      path: file.webkitRelativePath || '',
+      path: file.webkitRelativePath || '', // This captures the relative path including subfolders
+      relativePath: file.webkitRelativePath ? file.webkitRelativePath.substring(0, file.webkitRelativePath.lastIndexOf('/') + 1) : '',
       status: 'pending' // Initial status for all files
     }));
     
@@ -133,13 +134,16 @@ const JobForm = () => {
     return stateJson ? JSON.parse(stateJson) : null;
   };
   
-  const updateFileStatus = (jobId, fileName, newStatus) => {
+  const updateFileStatus = (jobId, fileName, newStatus, filePath = '') => {
     const state = getUploadState(jobId);
     if (!state) return;
     
-    // Find and update the file status
+    // Find and update the file status - handle both simple filenames and path-based lookups
     const updatedFiles = state.files.map(file => {
-      if (file.name === fileName) {
+      // Match either by name alone or by full path if available
+      if (file.name === fileName || 
+         (filePath && file.path === filePath) || 
+         (file.path && file.path.endsWith('/' + fileName))) {
         return { ...file, status: newStatus };
       }
       return file;
@@ -186,7 +190,7 @@ const JobForm = () => {
   };
 
   // File upload functions using API instead of direct blob storage
-  const uploadFileViaAPI = async (file, jobId) => {
+  const uploadFileViaAPI = async (file, jobId, relativePath = '') => {
     try {
       // Read the file as a base64 string
       const fileContent = await new Promise((resolve, reject) => {
@@ -196,10 +200,15 @@ const JobForm = () => {
         reader.onerror = error => reject(error);
       });
       
+      // Get the relative path from the file or from the parameter
+      const filePath = file.webkitRelativePath || 
+                       (relativePath ? relativePath + file.name : file.name);
+      
       // Prepare the payload
       const payload = {
         jobId,
         fileName: file.name,
+        filePath: filePath, // Send the full path including subfolders
         fileContent: fileContent,
         contentType: file.type
       };
@@ -291,12 +300,16 @@ const JobForm = () => {
         percentage: Math.round(((state.uploaded + i) / state.files.length) * 100)
       }));
       
-      // Upload the file
-      const success = await uploadFileViaAPI(file, jobId);
+      // Get the relative path from the file's webkitRelativePath property
+      const relativePath = file.webkitRelativePath ? 
+                           file.webkitRelativePath.substring(0, file.webkitRelativePath.lastIndexOf('/') + 1) : '';
+                           
+      // Upload the file with its relative path to preserve folder structure
+      const success = await uploadFileViaAPI(file, jobId, relativePath);
       
       if (success) {
-        // Update file status in localStorage
-        const newUploadedCount = updateFileStatus(jobId, file.name, 'complete');
+        // Update file status in localStorage - include the full path to handle files with identical names
+        const newUploadedCount = updateFileStatus(jobId, file.name, 'complete', file.webkitRelativePath);
         
         // Update progress
         setUploadProgress(prev => ({
@@ -836,7 +849,9 @@ const JobForm = () => {
                 <div className="file-preview">
                   {Array.from(formData.files).slice(0, 3).map((file, index) => (
                     <div key={index} className="file-item">
-                      <span className="file-name">{file.name}</span>
+                      <span className="file-name">
+                        {file.webkitRelativePath ? file.webkitRelativePath : file.name}
+                      </span>
                       <span className="file-size">({Math.round(file.size / 1024)} KB)</span>
                     </div>
                   ))}

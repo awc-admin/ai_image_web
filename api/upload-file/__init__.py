@@ -29,6 +29,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Extract file information from request
         job_id = req_body.get('jobId')
         file_name = req_body.get('fileName')
+        file_path = req_body.get('filePath', file_name)  # Use filePath if provided, otherwise just fileName
         file_content_b64 = req_body.get('fileContent')
         content_type = req_body.get('contentType', 'application/octet-stream')
         
@@ -61,8 +62,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
         container_client = blob_service_client.get_container_client(STORAGE_CONTAINER_UPLOAD)
         
-        # Create blob path with job ID as directory
-        blob_path = f"{job_id}/{file_name}"
+        # Create blob path with job ID as directory and preserve subfolder structure
+        blob_path = f"{job_id}/{file_path}"
         
         # Upload the file to blob storage
         blob_client = container_client.get_blob_client(blob_path)
