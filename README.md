@@ -2,6 +2,10 @@
 
 This project is an Azure Static Web App using React (v19.1.1) for the frontend and Python for the backend API. It provides a web interface for submitting image processing jobs with resilient file upload capabilities.
 
+## Recent Updates
+
+- **2023-11-10**: Fixed issue with `api_instance` field in Cosmos DB being set to 'react_web' instead of 'web'. Now the value is hardcoded to 'web' in the `JobStatusTable` class to ensure consistency.
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/)

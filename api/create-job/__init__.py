@@ -52,7 +52,8 @@ class JobStatusTable:
     ]
     
     def __init__(self, api_instance=None):
-        self.api_instance = api_instance if api_instance is not None else API_INSTANCE_NAME
+        # Always use 'web' for api_instance regardless of environment variable
+        self.api_instance = 'web'
         cosmos_client = CosmosClient(COSMOS_ENDPOINT, credential=COSMOS_WRITE_KEY)
         db_client = cosmos_client.get_database_client('camera-trap')
         self.db_jobs_client = db_client.get_container_client('batch_api_jobs')
