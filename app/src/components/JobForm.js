@@ -3,6 +3,10 @@ import { BlobServiceClient } from '@azure/storage-blob';
 import './JobForm.css';
 import { getUserEmail, getUserId } from '../utils/mockAuth';
 
+// Access environment variables 
+const STORAGE_CONTAINER_UPLOAD = process.env.REACT_APP_STORAGE_CONTAINER_UPLOAD || 'test-centralised-upload';
+const STORAGE_ACCOUNT_NAME = process.env.REACT_APP_STORAGE_ACCOUNT_NAME || 'imageclassifydatastore';
+
 // Constants for localStorage keys and upload states
 const UPLOAD_STATE_KEY_PREFIX = 'upload_job_';
 const UPLOAD_STATES = {
@@ -565,7 +569,8 @@ const JobForm = () => {
         // Add the additional fields
         image_path_prefix: imagePath,
         request_name: userId,  // Use the userId from Azure AD
-        api_instance_name: 'web'  // Add the api_instance_name field
+        api_instance_name: 'web',  // Add the api_instance_name field
+        input_container_sas: ''  // This will be updated with the actual SAS URL after the API response
       };
       
       // Log the data being sent to the API
@@ -585,11 +590,20 @@ const JobForm = () => {
         const result = await response.json();
         console.log('Job created successfully:', result);
         
-        // Update the apiData with the SAS URL received from the server
-        apiData.input_container_sas = result.sasTokenUrl;
+        // Update the apiData with the container SAS URL received from the server
+        if (result.containerSasUrl) {
+          console.log('Container SAS URL received:', result.containerSasUrl.substring(0, 50) + '...');
+          apiData.input_container_sas = result.containerSasUrl;
+        } else {
+          console.warn('No container SAS URL received from server');
+          const storageAccountName = process.env.REACT_APP_STORAGE_ACCOUNT_NAME || 'imageclassifydatastore';
+          apiData.input_container_sas = `https://${storageAccountName}.blob.core.windows.net/${STORAGE_CONTAINER_UPLOAD}`;
+        }
         
         // Update the API data in Cosmos DB with the SAS URL
         try {
+          console.log('Updating job parameters with input_container_sas');
+          
           // Make a follow-up API call to update the job with the SAS URL
           const updateResponse = await fetch(`/api/create-job/${result.jobId}/update-params`, {
             method: 'PUT',
@@ -601,6 +615,8 @@ const JobForm = () => {
           
           if (!updateResponse.ok) {
             console.warn('Failed to update job with SAS URL, but continuing with job creation');
+          } else {
+            console.log('Successfully updated job parameters');
           }
         } catch (updateError) {
           console.warn('Error updating job with SAS URL, but continuing with job creation:', updateError);
@@ -628,13 +644,16 @@ const JobForm = () => {
         // Save the upload state to localStorage with updated SAS URL and user ID
         const savedState = saveUploadState(result.jobId, currentFiles);
         
-        // Update the saved state with the SAS URL and userId
+        // Update the saved state with the container SAS URL and userId
         if (savedState) {
+          const containerSasUrl = result.containerSasUrl || 
+            `https://${STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_CONTAINER_UPLOAD}`;
+          
           const updatedState = {
             ...savedState,
             formData: {
               ...savedState.formData,
-              input_container_sas: result.sasTokenUrl,
+              input_container_sas: containerSasUrl,
               request_name: userId,
               api_instance_name: 'web'
             }
@@ -781,7 +800,7 @@ const JobForm = () => {
           // Set job details
           setJobDetails({
             jobId: incompleteUpload.jobId,
-            azCopyCommand: `azcopy copy "<local_folder_path>/*" "https://storage.blob.core.windows.net/test-centralised-upload/${incompleteUpload.jobId}?sv=..." --recursive=true`
+            azCopyCommand: `azcopy copy "<local_folder_path>/*" "https://storage.blob.core.windows.net/${STORAGE_CONTAINER_UPLOAD}/${incompleteUpload.jobId}?sv=..." --recursive=true`
           });
           
           // Set progress state

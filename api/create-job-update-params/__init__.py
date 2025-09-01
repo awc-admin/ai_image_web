@@ -56,6 +56,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
         
+        # Log the current and new parameters
+        logging.info(f"Current job parameters: {json.dumps(job_item['call_params'])}")
+        logging.info(f"New job parameters: {json.dumps(req_body)}")
+        
+        # Make sure input_container_sas is present
+        if 'input_container_sas' not in req_body or not req_body['input_container_sas']:
+            logging.warning("input_container_sas is missing or empty in the request")
+            # Provide a default value
+            req_body['input_container_sas'] = f"https://{os.environ.get('STORAGE_ACCOUNT_NAME', 'storage')}.blob.core.windows.net/{os.environ.get('STORAGE_CONTAINER_UPLOAD', 'test-centralised-upload')}"
+        
         # Update the call_params field
         job_item['call_params'] = req_body
         

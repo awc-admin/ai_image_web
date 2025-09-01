@@ -127,6 +127,62 @@ def generate_directory_sas_token(job_id):
     
     return sas_url
 
+def generate_container_sas_token():
+    """
+    Generate a SAS token for the entire container in blob storage.
+    """
+    try:
+        # Create a BlobServiceClient to ensure the connection is valid
+        blob_service_client = BlobServiceClient(
+            account_url=f"https://{STORAGE_ACCOUNT_NAME}.blob.core.windows.net",
+            credential=STORAGE_ACCOUNT_KEY
+        )
+        
+        # Set permissions for the SAS token (create, write, list)
+        permissions = BlobSasPermissions(
+            read=True,
+            add=True,
+            create=True,
+            write=True,
+            delete=False,
+            delete_previous_version=False,
+            tag=False,
+            list=True,
+            move=False,
+            execute=False,
+            ownership=False,
+            permissions=False
+        )
+        
+        # Set expiry time (60 minutes from now)
+        expiry = datetime.now(timezone.utc) + timedelta(minutes=60)
+        
+        # Generate SAS token for the container
+        sas_token = generate_blob_sas(
+            account_name=STORAGE_ACCOUNT_NAME,
+            container_name=STORAGE_CONTAINER_UPLOAD,
+            blob_name="",  # Empty string for container-level access
+            account_key=STORAGE_ACCOUNT_KEY,
+            permission=permissions,
+            expiry=expiry
+        )
+        
+        # Build the full SAS URL for the container
+        sas_url = build_azure_storage_uri(
+            account=STORAGE_ACCOUNT_NAME,
+            container=STORAGE_CONTAINER_UPLOAD,
+            sas_token=sas_token
+        )
+        
+        logging.info(f"Container SAS URL generated successfully: {sas_url[:50]}...")
+        return sas_url
+    except Exception as e:
+        logging.error(f"Error generating container SAS token: {str(e)}")
+        # Return a placeholder URL so the application doesn't crash
+        return f"https://{STORAGE_ACCOUNT_NAME}.blob.core.windows.net/{STORAGE_CONTAINER_UPLOAD}"
+    
+    return sas_url
+
 def generate_azcopy_command(sas_url):
     """
     Generate an AzCopy command for uploading local files to the SAS URL.
@@ -158,7 +214,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Create job status entry in Cosmos DB
         status = {
             'request_status': 'created',
-            'message': 'Request received from React web'
+            'message': 'Request received from React web. Pending upload images to Blob container'
         }
         
         # Initialize JobStatusTable
@@ -167,16 +223,20 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         # Store job information in Cosmos DB
         job_table.create_job_status(job_id, status, req_body)
         
-        # Generate SAS token for upload directory
-        sas_url = generate_directory_sas_token(job_id)
+        # Generate SAS token for the specific job directory
+        job_sas_url = generate_directory_sas_token(job_id)
         
-        # Generate AzCopy command
-        azcopy_command = generate_azcopy_command(sas_url)
+        # Generate SAS token for the entire container
+        container_sas_url = generate_container_sas_token()
         
-        # Return response with job ID, SAS URL, and AzCopy command
+        # Generate AzCopy command using the job-specific SAS URL
+        azcopy_command = generate_azcopy_command(job_sas_url)
+        
+        # Return response with job ID, SAS URLs, and AzCopy command
         response = {
             "jobId": job_id,
-            "sasTokenUrl": sas_url,
+            "sasTokenUrl": job_sas_url,
+            "containerSasUrl": container_sas_url,
             "azCopyCommand": azcopy_command
         }
         
