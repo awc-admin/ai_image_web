@@ -262,22 +262,25 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         job_table = JobStatusTable()
         job_table.create_job_status(job_id, status, req_body)
         
-        # Generate SAS URL for the job directory
+        # Generate SAS URL for the job directory (for internal use)
         job_sas_url = generate_directory_sas_url(job_id)
         
-        # Generate AzCopy command for the job directory
-        azcopy_command = generate_azcopy_command(job_sas_url)
+        # Generate AzCopy command (only for internal use, to be passed back to the client)
+        azcopy_command = f'azcopy copy "<local_folder_path>/*" "{job_sas_url}" --recursive=true'
         
-        # Return response with job ID, SAS URL, and AzCopy command
+        # Return response with only the job ID
+        # But also include SAS URL and AzCopy command as custom headers for the client to use
         response = {
-            "jobId": job_id,
-            "sasTokenUrl": job_sas_url,
-            "azCopyCommand": azcopy_command
+            "jobId": job_id
         }
         
         return func.HttpResponse(
             json.dumps(response),
             status_code=200,
+            headers={
+                "X-SAS-Token-URL": job_sas_url,
+                "X-AzCopy-Command": azcopy_command
+            },
             mimetype="application/json"
         )
         

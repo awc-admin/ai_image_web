@@ -589,6 +589,10 @@ const JobForm = () => {
         const result = await response.json();
         console.log('Job created successfully:', result);
         
+        // Extract SAS URL and AzCopy command from response headers
+        const sasTokenUrl = response.headers.get('X-SAS-Token-URL');
+        const azCopyCommand = response.headers.get('X-AzCopy-Command');
+        
         // Make a copy of the current files to preserve them
         const currentFiles = formData.files;
         
@@ -599,10 +603,12 @@ const JobForm = () => {
           // This ensures files are available in the component state
         }
         
-        // Add the user email to the job details
+        // Create enhanced result with user email, SAS URL and AzCopy command
         const enhancedResult = {
           ...result,
-          userEmail: userEmail || await getUserEmail() // Make sure we have the email
+          userEmail: userEmail || await getUserEmail(), // Make sure we have the email
+          sasTokenUrl,
+          azCopyCommand
         };
         
         // Store job details
@@ -611,16 +617,14 @@ const JobForm = () => {
         // Save the upload state to localStorage with updated SAS URL and user ID
         const savedState = saveUploadState(result.jobId, currentFiles);
         
-        // Update the saved state with the container SAS URL and userId
+        // Update the saved state with the SAS URL and userId
         if (savedState) {
-          const containerSasUrl = result.containerSasUrl || 
-            `https://${STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_CONTAINER_UPLOAD}`;
-          
           const updatedState = {
             ...savedState,
             formData: {
               ...savedState.formData,
-              input_container_sas: containerSasUrl,
+              input_container_sas: sasTokenUrl || 
+                `https://${STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_CONTAINER_UPLOAD}/${result.jobId}`,
               request_name: userId,
               api_instance_name: 'web'
             }

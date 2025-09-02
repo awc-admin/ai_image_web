@@ -14,6 +14,11 @@ This project is an Azure Static Web App using React (v19.1.1) for the frontend a
   - Removed `input_container_sas` field from job items in Cosmos DB
   - Simplified API response structure
   - Added a hard-coded `caller` field with value "awc" to all jobs
+- **2025-09-02**: API response improvements:
+  - Streamlined API responses to return only the job ID in the response body
+  - Moved SAS URL and AzCopy command to HTTP headers
+  - Enhanced security by reducing exposed data in the response body
+  - Maintained AzCopy command functionality in the UI
 
 ## Prerequisites
 
