@@ -190,7 +190,7 @@ def generate_directory_sas_url(job_id):
         # Generate the SAS token
         sas_token = generate_sas_token(
             blob_name=directory_path, 
-            read=False,  # No read permission needed for upload
+            read=True,   # Read permission is useful for listing uploaded files
             write=True   # Write permission needed for upload
         )
         
@@ -237,8 +237,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a create-job request.')
     
     # Check if the user is authenticated
+    # In production, this will be populated by Azure Static Web Apps
+    # In development, we'll allow requests without authentication
     client_principal = req.headers.get('x-ms-client-principal')
-    if not client_principal:
+    if not client_principal and not os.environ.get('AZURE_FUNCTIONS_ENVIRONMENT') == 'Development':
         return func.HttpResponse(
             json.dumps({"error": "Authentication required"}),
             status_code=401,
@@ -248,6 +250,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Parse request body
         req_body = req.get_json() if req.get_body() else {}
+        
+        # Validate required fields
+        if 'num_images' not in req_body or not isinstance(req_body['num_images'], int):
+            return func.HttpResponse(
+                json.dumps({"error": "num_images is required and must be an integer"}),
+                status_code=400,
+                mimetype="application/json"
+            )
         
         # Generate a unique job ID
         job_id = uuid.uuid4().hex
@@ -279,7 +289,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             status_code=200,
             headers={
                 "X-SAS-Token-URL": job_sas_url,
-                "X-AzCopy-Command": azcopy_command
+                "X-AzCopy-Command": azcopy_command,
+                "Content-Type": "application/json",
+                "Access-Control-Expose-Headers": "X-SAS-Token-URL, X-AzCopy-Command"
             },
             mimetype="application/json"
         )

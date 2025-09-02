@@ -241,6 +241,13 @@ const JobForm = () => {
   // File upload functions using API instead of direct blob storage
   const uploadFileViaAPI = async (file, jobId, relativePath = '', retries = 3) => {
     try {
+      // Skip files that are too large (>100MB) to avoid timeouts
+      const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+      if (file.size > MAX_FILE_SIZE) {
+        console.warn(`File ${file.name} is too large (${(file.size / (1024 * 1024)).toFixed(2)}MB). Skipping.`);
+        return false;
+      }
+
       // Read the file as a base64 string
       const fileContent = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -417,7 +424,7 @@ const JobForm = () => {
       saveUploadState(jobId, files);
       
       // Use all files from the input
-      pendingFiles.push(...Array.from(files));
+      pendingFiles.push(...Array.from(files).filter(file => isImageFile(file)));
     }
     
     // If we still have no files to upload, something is wrong
@@ -446,6 +453,9 @@ const JobForm = () => {
     
     // Process files in batches
     let fileIndex = 0;
+    let failureCount = 0;
+    const maxFailures = Math.max(5, Math.ceil(pendingFiles.length * 0.05)); // 5% failure tolerance
+    
     while (fileIndex < pendingFiles.length) {
       // Get the next batch of files
       const batch = pendingFiles.slice(fileIndex, fileIndex + CONCURRENT_UPLOADS);
@@ -457,12 +467,17 @@ const JobForm = () => {
       }));
       
       // Upload this batch
-      const { allSuccessful } = await uploadFileBatch(jobId, batch, CONCURRENT_UPLOADS);
+      const { allSuccessful, successCount } = await uploadFileBatch(jobId, batch, CONCURRENT_UPLOADS);
       
-      // If any upload in the batch failed, stop
+      // If any upload in the batch failed, increment failure count
       if (!allSuccessful) {
-        setErrors({...errors, api: 'Some files failed to upload. You can resume the upload later.'});
-        return;
+        failureCount += (batch.length - successCount);
+        
+        // If too many failures, stop the upload
+        if (failureCount > maxFailures) {
+          setErrors({...errors, api: `Upload stopped after ${failureCount} failed files. You can resume the upload later.`});
+          return;
+        }
       }
       
       // Move to the next batch
