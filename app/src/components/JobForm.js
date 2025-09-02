@@ -968,17 +968,9 @@ const JobForm = () => {
       
       <h2>Submit a New Image Processing Job</h2>
       
-      {/* Success Message */}
-      {submitSuccess && (
-        <div className="success-message">
-          Your job has been submitted successfully! 
-          {formData.email ? ' We\'ll send the results to your email when processing is complete.' : ' No email provided for notifications.'}
-        </div>
-      )}
-      
-      {/* API Message (Error or Success) */}
-      {errors.api && (
-        <div className={apiMessageType === 'success' ? "api-success-message" : "api-error-message"}>
+      {/* API Message (Error or Success) - Only show if not a success message and job not submitted yet */}
+      {errors.api && !submitSuccess && apiMessageType !== 'success' && (
+        <div className="api-error-message">
           {errors.api}
         </div>
       )}
@@ -1109,7 +1101,7 @@ const JobForm = () => {
           )}
           
           {uploadState === UPLOAD_STATES.COMPLETE && jobSubmitted && (
-            <div className="upload-status success">
+            <div className="upload-status success-status">
               <h4>Job submitted successfully!</h4>
               <p>Your job has been submitted for AI processing. The processing will begin shortly.</p>
               

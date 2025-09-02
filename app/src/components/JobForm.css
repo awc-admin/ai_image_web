@@ -408,6 +408,11 @@
   border-left: 3px solid #0078d4;
 }
 
+.upload-status.success-status {
+  background-color: #dff6dd;
+  border-left: 3px solid #107c10;
+}
+
 .upload-status .go-back-button {
   margin-top: 15px;
   padding: 10px 15px;
@@ -421,8 +426,16 @@
   transition: background-color 0.2s ease;
 }
 
+.upload-status.success-status .go-back-button {
+  background-color: #107c10;
+}
+
 .upload-status .go-back-button:hover {
   background-color: #106ebe;
+}
+
+.upload-status.success-status .go-back-button:hover {
+  background-color: #0b6a0b;
 }
 
 .upload-status .submit-job-button {
