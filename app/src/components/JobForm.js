@@ -66,7 +66,7 @@ const JobForm = () => {
   const [jobSubmitted, setJobSubmitted] = useState(false);
   
   // State for UI controls
-  const [isAzCopyPanelOpen, setIsAzCopyPanelOpen] = useState(true);
+  const [isAzCopyPanelOpen, setIsAzCopyPanelOpen] = useState(false);
   const [autoSubmitAfterUpload, setAutoSubmitAfterUpload] = useState(false);
   
   // Destructure formData for easier access in the JSX
