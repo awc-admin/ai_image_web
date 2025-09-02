@@ -569,8 +569,7 @@ const JobForm = () => {
         // Add the additional fields
         image_path_prefix: imagePath,
         request_name: userId,  // Use the userId from Azure AD
-        api_instance_name: 'web',  // Add the api_instance_name field
-        input_container_sas: ''  // This will be updated with the actual SAS URL after the API response
+        api_instance_name: 'web'  // Add the api_instance_name field
       };
       
       // Log the data being sent to the API
@@ -589,38 +588,6 @@ const JobForm = () => {
       if (response.ok) {
         const result = await response.json();
         console.log('Job created successfully:', result);
-        
-        // Update the apiData with the container SAS URL received from the server
-        if (result.containerSasUrl) {
-          console.log('Container SAS URL received:', result.containerSasUrl.substring(0, 50) + '...');
-          apiData.input_container_sas = result.containerSasUrl;
-        } else {
-          console.warn('No container SAS URL received from server');
-          const storageAccountName = process.env.REACT_APP_STORAGE_ACCOUNT_NAME || 'imageclassifydatastore';
-          apiData.input_container_sas = `https://${storageAccountName}.blob.core.windows.net/${STORAGE_CONTAINER_UPLOAD}`;
-        }
-        
-        // Update the API data in Cosmos DB with the SAS URL
-        try {
-          console.log('Updating job parameters with input_container_sas');
-          
-          // Make a follow-up API call to update the job with the SAS URL
-          const updateResponse = await fetch(`/api/create-job/${result.jobId}/update-params`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(apiData)
-          });
-          
-          if (!updateResponse.ok) {
-            console.warn('Failed to update job with SAS URL, but continuing with job creation');
-          } else {
-            console.log('Successfully updated job parameters');
-          }
-        } catch (updateError) {
-          console.warn('Error updating job with SAS URL, but continuing with job creation:', updateError);
-        }
         
         // Make a copy of the current files to preserve them
         const currentFiles = formData.files;

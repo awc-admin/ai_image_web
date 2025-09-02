@@ -98,6 +98,20 @@ class JobStatusTable:
         # Create timestamp
         cur_time = get_utc_time()
         
+        # Modify image_path_prefix to include job_id
+        if 'image_path_prefix' in call_params:
+            original_path = call_params['image_path_prefix']
+            call_params['image_path_prefix'] = f"{job_id}/{original_path}"
+        else:
+            call_params['image_path_prefix'] = job_id
+            
+        # Remove input_container_sas if present
+        if 'input_container_sas' in call_params:
+            del call_params['input_container_sas']
+            
+        # Add 'caller' field with hard-coded value "awc"
+        call_params['caller'] = 'awc'
+        
         # Create job item
         item = {
             'id': job_id,
@@ -194,36 +208,6 @@ def generate_directory_sas_url(job_id):
         logging.error(f"Error generating directory SAS URL: {str(e)}")
         raise
 
-
-def generate_container_sas_url():
-    """
-    Generate a SAS URL for the entire container in blob storage.
-    
-    Returns:
-        The full SAS URL for the container
-    """
-    try:
-        # Generate the SAS token
-        sas_token = generate_sas_token(
-            blob_name="",  # Empty string for container-level access
-            read=True,     # Need read permission for the container
-            write=True     # Need write permission for uploads
-        )
-        
-        # Build the full SAS URL
-        sas_url = build_azure_storage_uri(
-            account=STORAGE_ACCOUNT_NAME,
-            container=STORAGE_CONTAINER_UPLOAD,
-            sas_token=sas_token
-        )
-        
-        logging.info(f"Generated container SAS URL: {sas_url[:50]}...")
-        return sas_url
-    except Exception as e:
-        logging.error(f"Error generating container SAS URL: {str(e)}")
-        # Return a placeholder URL so the application doesn't crash
-        return f"https://{STORAGE_ACCOUNT_NAME}.blob.core.windows.net/{STORAGE_CONTAINER_UPLOAD}"
-
 def generate_azcopy_command(sas_url):
     """
     Generate an AzCopy command for uploading local files to the SAS URL.
@@ -278,18 +262,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         job_table = JobStatusTable()
         job_table.create_job_status(job_id, status, req_body)
         
-        # Generate SAS URLs
+        # Generate SAS URL for the job directory
         job_sas_url = generate_directory_sas_url(job_id)
-        container_sas_url = generate_container_sas_url()
         
         # Generate AzCopy command for the job directory
         azcopy_command = generate_azcopy_command(job_sas_url)
         
-        # Return response with job ID, SAS URLs, and AzCopy command
+        # Return response with job ID, SAS URL, and AzCopy command
         response = {
             "jobId": job_id,
             "sasTokenUrl": job_sas_url,
-            "containerSasUrl": container_sas_url,
             "azCopyCommand": azcopy_command
         }
         

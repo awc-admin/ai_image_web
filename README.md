@@ -9,6 +9,11 @@ This project is an Azure Static Web App using React (v19.1.1) for the frontend a
   - Reorganized backend code for better separation of concerns and error handling
   - Created utility files for frontend code organization
   - Eliminated duplicate code and improved function documentation
+- **2023-11-12**: Modified Cosmos DB item structure:
+  - Updated `image_path_prefix` to include the job ID (format: `{job_id}/{original_path}`)
+  - Removed `input_container_sas` field from job items in Cosmos DB
+  - Simplified API response structure
+  - Added a hard-coded `caller` field with value "awc" to all jobs
 
 ## Prerequisites
 

@@ -37,20 +37,20 @@ def get_job_by_id(container_client, job_id):
 
 def ensure_container_sas_url(params):
     """
-    Ensure the params dictionary has a valid input_container_sas URL.
+    Process parameters before updating.
     
     Args:
-        params: The parameters dictionary to check/update
+        params: The parameters dictionary to process
         
     Returns:
-        The updated parameters dictionary
+        The processed parameters dictionary
     """
-    if 'input_container_sas' not in params or not params['input_container_sas']:
-        logging.warning("input_container_sas is missing or empty in the request")
-        # Provide a default value
-        params['input_container_sas'] = (
-            f"https://{STORAGE_ACCOUNT_NAME}.blob.core.windows.net/{STORAGE_CONTAINER_UPLOAD}"
-        )
+    # Remove input_container_sas if present
+    if 'input_container_sas' in params:
+        del params['input_container_sas']
+    
+    # Ensure 'caller' field is set to 'awc'
+    params['caller'] = 'awc'
     
     return params
 
