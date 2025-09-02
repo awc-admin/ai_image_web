@@ -492,6 +492,8 @@ const JobForm = () => {
     
     // Upload completed successfully
     setUploadState(UPLOAD_STATES.COMPLETE);
+    // Ensure jobSubmitted is false after upload completion to show the "Submit this job" button
+    setJobSubmitted(false);
     // Don't set submitSuccess to true here, as this is just the upload completion
     // setSubmitSuccess will only be set to true after the job is submitted to the AI server
     
@@ -578,6 +580,10 @@ const JobForm = () => {
     
     // Reset API message type to default (error)
     setApiMessageType('error');
+    
+    // Reset job states
+    setJobSubmitted(false);
+    setSubmitSuccess(false);
     
     setUploadState(UPLOAD_STATES.IDLE);
     setJobDetails(null);
@@ -792,9 +798,10 @@ const JobForm = () => {
       return;
     }
     
-    // Reset the submitSuccess flag when starting a new upload
+    // Reset the submitSuccess and jobSubmitted flags when starting a new upload
     // This ensures proper messaging during the upload process
     setSubmitSuccess(false);
+    setJobSubmitted(false);
     
     // Get the upload state from localStorage
     const savedState = getUploadState(jobDetails.jobId);
