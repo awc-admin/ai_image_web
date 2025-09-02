@@ -492,7 +492,8 @@ const JobForm = () => {
     
     // Upload completed successfully
     setUploadState(UPLOAD_STATES.COMPLETE);
-    setSubmitSuccess(true);
+    // Don't set submitSuccess to true here, as this is just the upload completion
+    // setSubmitSuccess will only be set to true after the job is submitted to the AI server
     
     // We keep the upload state in localStorage until the user submits the job to AI processing
     // or decides to go back to the form
@@ -791,6 +792,10 @@ const JobForm = () => {
       return;
     }
     
+    // Reset the submitSuccess flag when starting a new upload
+    // This ensures proper messaging during the upload process
+    setSubmitSuccess(false);
+    
     // Get the upload state from localStorage
     const savedState = getUploadState(jobDetails.jobId);
     
@@ -870,6 +875,7 @@ const JobForm = () => {
         
         // Update state to indicate job is submitted
         setJobSubmitted(true);
+        setSubmitSuccess(true); // Now we can set submitSuccess to true as the job is fully submitted
         
         // Show success message
         setApiMessageType('success');
@@ -1052,7 +1058,7 @@ const JobForm = () => {
                       type="button"
                       className="submit-job-button"
                       onClick={handleSubmitJob}
-                      disabled={isSubmitting || jobSubmitted}
+                      disabled={isSubmitting}
                     >
                       {isSubmitting ? 'Submitting...' : 'Submit this job'}
                     </button>
@@ -1086,25 +1092,26 @@ const JobForm = () => {
             </div>
           )}
           
-          {uploadState === UPLOAD_STATES.COMPLETE && (
+          {uploadState === UPLOAD_STATES.COMPLETE && !jobSubmitted && (
             <div className="upload-status">
               <h4>Upload completed successfully!</h4>
               <p>Your job has been created and all files were uploaded successfully. Click "Submit this job" to start AI processing.</p>
               
-              {!jobSubmitted && (
-                <button
-                  type="button"
-                  className="submit-job-button"
-                  onClick={handleSubmitJob}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit this job'}
-                </button>
-              )}
-              
-              {jobSubmitted && (
-                <p>Job submitted successfully! The AI processing will begin shortly.</p>
-              )}
+              <button
+                type="button"
+                className="submit-job-button"
+                onClick={handleSubmitJob}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit this job'}
+              </button>
+            </div>
+          )}
+          
+          {uploadState === UPLOAD_STATES.COMPLETE && jobSubmitted && (
+            <div className="upload-status success">
+              <h4>Job submitted successfully!</h4>
+              <p>Your job has been submitted for AI processing. The processing will begin shortly.</p>
               
               {formData.email ? (
                 <p>You will receive an email at <strong>{formData.email}</strong> (provided by you) when processing is complete.</p>
