@@ -283,7 +283,70 @@ const JobForm = () => {
     }
   };
   
-  // Function to upload all files in a resilient manner
+  // Function to upload a batch of files in parallel
+  const uploadFileBatch = async (jobId, files, batchSize = 3) => {
+    // Create a copy of the files array to avoid mutation
+    const pendingBatch = [...files];
+    
+    // Track successful uploads in this batch
+    let successCount = 0;
+    
+    // Process files in parallel
+    const uploadPromises = [];
+    
+    // Take up to batchSize files from the pending batch
+    for (let i = 0; i < Math.min(batchSize, pendingBatch.length); i++) {
+      const file = pendingBatch[i];
+      
+      // Get the relative path from the file's webkitRelativePath property
+      const relativePath = file.webkitRelativePath ? 
+                           file.webkitRelativePath.substring(0, file.webkitRelativePath.lastIndexOf('/') + 1) : '';
+      
+      // Create a promise for this file upload
+      const uploadPromise = (async () => {
+        try {
+          // Upload the file with its relative path
+          const success = await uploadFileViaAPI(file, jobId, relativePath);
+          
+          if (success) {
+            // Update file status in localStorage
+            const newUploadedCount = updateFileStatus(jobId, file.name, 'complete', file.webkitRelativePath);
+            
+            // Increment success count for this batch
+            successCount++;
+            
+            // Update progress UI
+            setUploadProgress(prev => ({
+              ...prev,
+              uploaded: newUploadedCount,
+              percentage: Math.round((newUploadedCount / prev.total) * 100)
+            }));
+            
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          return false;
+        }
+      })();
+      
+      uploadPromises.push(uploadPromise);
+    }
+    
+    // Wait for all uploads in this batch to complete
+    const results = await Promise.all(uploadPromises);
+    
+    // Check if any uploads failed
+    const allSuccessful = results.every(result => result === true);
+    
+    return {
+      successCount,
+      allSuccessful
+    };
+  };
+
+  // Function to upload all files in a resilient manner with parallel processing
   const uploadFiles = async (jobId, files) => {
     // Get the current upload state from localStorage
     const state = getUploadState(jobId);
@@ -332,45 +395,40 @@ const JobForm = () => {
     setUploadProgress({
       total: state.files.length,
       uploaded: state.uploaded,
-      current: pendingFiles.length > 0 ? pendingFiles[0].name : null,
+      current: pendingFiles.length > 0 ? 'Multiple files' : null,
       percentage: Math.round((state.uploaded / state.files.length) * 100)
     });
     
     // Set upload state to uploading
     setUploadState(UPLOAD_STATES.UPLOADING);
     
-    // Upload each pending file one by one
-    for (let i = 0; i < pendingFiles.length; i++) {
-      const file = pendingFiles[i];
+    // Define the batch size based on VM resources (B2s: 2 cores, 4GB RAM)
+    // For a B2s VM, 3 concurrent uploads is a good balance
+    const CONCURRENT_UPLOADS = 3;
+    
+    // Process files in batches
+    let fileIndex = 0;
+    while (fileIndex < pendingFiles.length) {
+      // Get the next batch of files
+      const batch = pendingFiles.slice(fileIndex, fileIndex + CONCURRENT_UPLOADS);
       
-      // Update progress
+      // Update the current file name in the UI
       setUploadProgress(prev => ({
         ...prev,
-        current: file.name,
-        percentage: Math.round(((state.uploaded + i) / state.files.length) * 100)
+        current: batch.length > 1 ? `${batch.length} files in parallel` : batch[0].name
       }));
       
-      // Get the relative path from the file's webkitRelativePath property
-      const relativePath = file.webkitRelativePath ? 
-                           file.webkitRelativePath.substring(0, file.webkitRelativePath.lastIndexOf('/') + 1) : '';
-                           
-      // Upload the file with its relative path to preserve folder structure
-      const success = await uploadFileViaAPI(file, jobId, relativePath);
+      // Upload this batch
+      const { allSuccessful } = await uploadFileBatch(jobId, batch, CONCURRENT_UPLOADS);
       
-      if (success) {
-        // Update file status in localStorage - include the full path to handle files with identical names
-        const newUploadedCount = updateFileStatus(jobId, file.name, 'complete', file.webkitRelativePath);
-        
-        // Update progress
-        setUploadProgress(prev => ({
-          ...prev,
-          uploaded: newUploadedCount
-        }));
-      } else {
-        // If upload fails, keep status as pending so we can retry later
-        setErrors({...errors, api: `Failed to upload ${file.name}. You can resume the upload later.`});
+      // If any upload in the batch failed, stop
+      if (!allSuccessful) {
+        setErrors({...errors, api: 'Some files failed to upload. You can resume the upload later.'});
         return;
       }
+      
+      // Move to the next batch
+      fileIndex += CONCURRENT_UPLOADS;
     }
     
     // All files uploaded, update state to completing

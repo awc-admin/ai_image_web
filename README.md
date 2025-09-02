@@ -19,6 +19,11 @@ This project is an Azure Static Web App using React (v19.1.1) for the frontend a
   - Moved SAS URL and AzCopy command to HTTP headers
   - Enhanced security by reducing exposed data in the response body
   - Maintained AzCopy command functionality in the UI
+- **2025-09-02**: Upload performance optimization:
+  - Implemented parallel file uploads for improved speed
+  - Optimized for Azure B2s VMs (2 cores, 4GB RAM) with 3 concurrent uploads
+  - Added batch processing to handle large numbers of files efficiently
+  - Improved progress tracking for multiple simultaneous uploads
 
 ## Prerequisites
 
