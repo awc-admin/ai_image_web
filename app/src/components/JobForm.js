@@ -239,7 +239,7 @@ const JobForm = () => {
   };
 
   // File upload functions using API instead of direct blob storage
-  const uploadFileViaAPI = async (file, jobId, relativePath = '') => {
+  const uploadFileViaAPI = async (file, jobId, relativePath = '', retries = 3) => {
     try {
       // Read the file as a base64 string
       const fileContent = await new Promise((resolve, reject) => {
@@ -262,23 +262,58 @@ const JobForm = () => {
         contentType: file.type
       };
       
-      // Upload via API
-      const response = await fetch('/api/upload-file', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
+      // Upload via API with retry logic
+      let lastError = null;
+      for (let attempt = 0; attempt < retries + 1; attempt++) {
+        try {
+          // If this is a retry, wait before trying again with exponential backoff
+          if (attempt > 0) {
+            const backoffTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10 seconds
+            console.log(`Retrying upload for ${file.name} (attempt ${attempt}/${retries}) after ${backoffTime}ms`);
+            await new Promise(resolve => setTimeout(resolve, backoffTime));
+          }
+          
+          const response = await fetch('/api/upload-file', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Upload failed');
+          }
+          
+          // If we get here, the upload succeeded
+          return true;
+        } catch (error) {
+          lastError = error;
+          console.warn(`Upload attempt ${attempt + 1}/${retries + 1} failed for ${file.name}:`, error);
+          
+          // If this is a connection error, continue to retry
+          // Otherwise (like a 400 Bad Request), stop retrying
+          const isConnectionError = error.message.includes('fetch') || 
+                                    error.message.includes('network') ||
+                                    error.message.includes('connection');
+          if (!isConnectionError) {
+            console.error(`Non-connection error, stopping retry attempts:`, error);
+            break;
+          }
+          
+          // If we've reached the max retries, give up
+          if (attempt >= retries) {
+            console.error(`Max retries (${retries}) reached for ${file.name}`);
+          }
+        }
       }
       
-      return true;
+      // If we get here, all retry attempts failed
+      console.error(`Upload failed after ${retries} retries for ${file.name}:`, lastError);
+      return false;
     } catch (error) {
-      console.error(`Error uploading file ${file.name}:`, error);
+      console.error(`Error preparing upload for ${file.name}:`, error);
       return false;
     }
   };
@@ -403,8 +438,11 @@ const JobForm = () => {
     setUploadState(UPLOAD_STATES.UPLOADING);
     
     // Define the batch size based on VM resources (B2s: 2 cores, 4GB RAM)
-    // For a B2s VM, 3 concurrent uploads is a good balance
-    const CONCURRENT_UPLOADS = 3;
+    // For normal uploads, 5 concurrent uploads for speed
+    // For large file sets (>100), reduce to 3 to avoid overwhelming the server
+    const MAX_CONCURRENT_UPLOADS = 5;
+    const totalFiles = pendingFiles.length;
+    const CONCURRENT_UPLOADS = totalFiles > 100 ? 3 : MAX_CONCURRENT_UPLOADS;
     
     // Process files in batches
     let fileIndex = 0;
