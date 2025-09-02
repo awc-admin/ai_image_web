@@ -502,6 +502,51 @@
   cursor: not-allowed;
 }
 
+/* Collapsible panel styles */
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding-bottom: 0.5rem;
+}
+
+.collapsible-header:hover h5 {
+  color: #0078d4;
+}
+
+.collapsible-content {
+  padding-top: 0.5rem;
+}
+
+.collapse-arrow {
+  font-size: 0.8rem;
+  color: #666;
+  transition: transform 0.3s ease;
+}
+
+.collapse-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Auto submit checkbox styles */
+.auto-submit-option {
+  margin-bottom: 1rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin-right: 0.5rem;
+  cursor: pointer;
+}
+
 /* Responsive adjustments */
 @media (max-width: 650px) {
   .job-form-container {

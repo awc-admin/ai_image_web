@@ -65,6 +65,10 @@ const JobForm = () => {
   // State for tracking if the job has been submitted to AI processing
   const [jobSubmitted, setJobSubmitted] = useState(false);
   
+  // State for UI controls
+  const [isAzCopyPanelOpen, setIsAzCopyPanelOpen] = useState(true);
+  const [autoSubmitAfterUpload, setAutoSubmitAfterUpload] = useState(false);
+  
   // Destructure formData for easier access in the JSX
   const { 
     detectionModel, 
@@ -497,6 +501,14 @@ const JobForm = () => {
     // Don't set submitSuccess to true here, as this is just the upload completion
     // setSubmitSuccess will only be set to true after the job is submitted to the AI server
     
+    // Auto-submit job if the checkbox was checked
+    if (autoSubmitAfterUpload && jobDetails && jobDetails.jobId) {
+      // Small delay to ensure UI updates first
+      setTimeout(() => {
+        handleSubmitJob();
+      }, 500);
+    }
+    
     // We keep the upload state in localStorage until the user submits the job to AI processing
     // or decides to go back to the form
   };
@@ -584,6 +596,10 @@ const JobForm = () => {
     // Reset job states
     setJobSubmitted(false);
     setSubmitSuccess(false);
+    
+    // Reset UI controls
+    setIsAzCopyPanelOpen(false);
+    setAutoSubmitAfterUpload(false);
     
     setUploadState(UPLOAD_STATES.IDLE);
     setJobDetails(null);
@@ -1016,6 +1032,17 @@ const JobForm = () => {
                   <h5>Option 1: Browser Upload</h5>
                   <p>Best for smaller uploads (up to a few GB total).</p>
                   
+                  <div className="auto-submit-option">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={autoSubmitAfterUpload}
+                        onChange={(e) => setAutoSubmitAfterUpload(e.target.checked)}
+                      />
+                      Submit job after uploading is done
+                    </label>
+                  </div>
+                  
                   <div className="upload-actions">
                     <button
                       type="button"
@@ -1027,41 +1054,52 @@ const JobForm = () => {
                   </div>
                 </div>
                 
-                {/* AzCopy Option */}
+                {/* AzCopy Option - Collapsible */}
                 <div className="upload-option">
-                  <h5>Option 2: AzCopy Command (for large uploads)</h5>
-                  <p>Recommended for very large datasets. Copy this command and run it in your terminal:</p>
+                  <div 
+                    className="collapsible-header" 
+                    onClick={() => setIsAzCopyPanelOpen(!isAzCopyPanelOpen)}
+                  >
+                    <h5>Option 2: AzCopy Command (for large uploads)</h5>
+                    <span className={`collapse-arrow ${isAzCopyPanelOpen ? 'open' : ''}`}>▼</span>
+                  </div>
                   
-                  <div className="azcopy-command">
-                    <pre>{jobDetails.azCopyCommand}</pre>
-                    <button 
-                      type="button" 
-                      className="copy-button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(jobDetails.azCopyCommand);
-                        alert('AzCopy command copied to clipboard!');
-                      }}
-                    >
-                      Copy to Clipboard
-                    </button>
-                  </div>
+                  {isAzCopyPanelOpen && (
+                    <div className="collapsible-content">
+                      <p>Recommended for very large datasets. Copy this command and run it in your terminal:</p>
+                      
+                      <div className="azcopy-command">
+                        <pre>{jobDetails.azCopyCommand}</pre>
+                        <button 
+                          type="button" 
+                          className="copy-button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(jobDetails.azCopyCommand);
+                            alert('AzCopy command copied to clipboard!');
+                          }}
+                        >
+                          Copy to Clipboard
+                        </button>
+                      </div>
 
-                  {/* Text about making sure images are uploaded */}
-                  <div className="upload-warning">
-                    <p>Make sure all your images have been uploaded via the AzCopy command before clicking the 'Submit this job' button</p>
-                  </div>
+                      {/* Text about making sure images are uploaded */}
+                      <div className="upload-warning">
+                        <p>Make sure all your images have been uploaded via the AzCopy command before clicking the 'Submit this job' button</p>
+                      </div>
 
-                  {/* Submit this job button */}
-                  <div className="submit-job-action">
-                    <button
-                      type="button"
-                      className="submit-job-button"
-                      onClick={handleSubmitJob}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Submit this job'}
-                    </button>
-                  </div>
+                      {/* Submit this job button */}
+                      <div className="submit-job-action">
+                        <button
+                          type="button"
+                          className="submit-job-button"
+                          onClick={handleSubmitJob}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? 'Submitting...' : 'Submit this job'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               
