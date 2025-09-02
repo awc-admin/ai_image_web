@@ -62,6 +62,9 @@ const JobForm = () => {
     percentage: 0
   });
   
+  // State for tracking if the job has been submitted to AI processing
+  const [jobSubmitted, setJobSubmitted] = useState(false);
+  
   // Destructure formData for easier access in the JSX
   const { 
     detectionModel, 
@@ -487,26 +490,12 @@ const JobForm = () => {
     // All files uploaded, update state to completing
     setUploadState(UPLOAD_STATES.COMPLETING);
     
-    // Call the complete-upload endpoint (to be implemented)
-    try {
-      // In a real implementation, you would call a separate API endpoint to finalize
-      // For now, we'll just mark it as complete
-      
-      // Upload completed successfully
-      setUploadState(UPLOAD_STATES.COMPLETE);
-      setSubmitSuccess(true);
-      
-      // Remove the upload state from localStorage
-      removeUploadState(jobId);
-      
-      // We keep the success message visible indefinitely and provide a button to go back
-      // No more automatic timeout reset
-      
-    } catch (error) {
-      console.error('Error completing upload:', error);
-      setErrors({...errors, api: 'Error completing upload. Please try again.'});
-      setUploadState(UPLOAD_STATES.ERROR);
-    }
+    // Upload completed successfully
+    setUploadState(UPLOAD_STATES.COMPLETE);
+    setSubmitSuccess(true);
+    
+    // We keep the upload state in localStorage until the user submits the job to AI processing
+    // or decides to go back to the form
   };
 
   // Handle changes to any input field
@@ -852,6 +841,60 @@ const JobForm = () => {
     await uploadFiles(jobDetails.jobId, filesToUse);
   };
 
+  // Handle submitting the job to the AI server
+  const handleSubmitJob = async () => {
+    if (!jobDetails || !jobDetails.jobId) {
+      setErrors({...errors, api: 'Missing job details'});
+      return;
+    }
+    
+    // Show loading state
+    setIsSubmitting(true);
+    setApiMessageType('info');
+    setErrors({...errors, api: 'Submitting job to AI server...'});
+    
+    try {
+      // Call the complete-upload endpoint
+      const response = await fetch('/api/complete-upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId: jobDetails.jobId })
+      });
+      
+      // Process response
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Job submitted successfully:', result);
+        
+        // Update state to indicate job is submitted
+        setJobSubmitted(true);
+        
+        // Show success message
+        setApiMessageType('success');
+        setErrors({...errors, api: 'Job submitted successfully! You will be notified by email when processing is complete.'});
+        
+        // Update upload state
+        setUploadState(UPLOAD_STATES.COMPLETE);
+        
+      } else {
+        // Handle error response
+        const errorData = await response.json();
+        console.error('Error submitting job:', errorData);
+        
+        setApiMessageType('error');
+        setErrors({...errors, api: `Error submitting job: ${errorData.error || 'Unknown error'}`});
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      setApiMessageType('error');
+      setErrors({...errors, api: `Network error: ${error.message}`});
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // useEffect to check for incomplete uploads when component mounts
   useEffect(() => {
     // Only check for incomplete uploads if we're in the idle state
@@ -997,6 +1040,23 @@ const JobForm = () => {
                       Copy to Clipboard
                     </button>
                   </div>
+
+                  {/* Text about making sure images are uploaded */}
+                  <div className="upload-warning">
+                    <p>Make sure all your images have been uploaded via the AzCopy command before clicking the 'Submit this job' button</p>
+                  </div>
+
+                  {/* Submit this job button */}
+                  <div className="submit-job-action">
+                    <button
+                      type="button"
+                      className="submit-job-button"
+                      onClick={handleSubmitJob}
+                      disabled={isSubmitting || jobSubmitted}
+                    >
+                      {isSubmitting ? 'Submitting...' : 'Submit this job'}
+                    </button>
+                  </div>
                 </div>
               </div>
               
@@ -1013,7 +1073,7 @@ const JobForm = () => {
                     resetForm();
                   }}
                 >
-                  Submit another job
+                  Back to front page
                 </button>
               </div>
             </div>
@@ -1029,7 +1089,23 @@ const JobForm = () => {
           {uploadState === UPLOAD_STATES.COMPLETE && (
             <div className="upload-status">
               <h4>Upload completed successfully!</h4>
-              <p>Your job has been submitted and all files were uploaded successfully. The AI processing will begin shortly.</p>
+              <p>Your job has been created and all files were uploaded successfully. Click "Submit this job" to start AI processing.</p>
+              
+              {!jobSubmitted && (
+                <button
+                  type="button"
+                  className="submit-job-button"
+                  onClick={handleSubmitJob}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit this job'}
+                </button>
+              )}
+              
+              {jobSubmitted && (
+                <p>Job submitted successfully! The AI processing will begin shortly.</p>
+              )}
+              
               {formData.email ? (
                 <p>You will receive an email at <strong>{formData.email}</strong> (provided by you) when processing is complete.</p>
               ) : (
@@ -1040,13 +1116,17 @@ const JobForm = () => {
                 type="button"
                 className="go-back-button"
                 onClick={() => {
+                  // Remove the upload state first to avoid resume prompt
+                  if (jobDetails && jobDetails.jobId) {
+                    removeUploadState(jobDetails.jobId);
+                  }
                   setSubmitSuccess(false);
                   resetForm();
                   setUploadState(UPLOAD_STATES.IDLE);
                   setJobDetails(null);
                 }}
               >
-                Submit another job
+                Back to front page
               </button>
             </div>
           )}
