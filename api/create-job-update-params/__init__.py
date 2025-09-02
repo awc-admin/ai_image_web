@@ -5,13 +5,90 @@ from azure.cosmos.cosmos_client import CosmosClient
 
 import azure.functions as func
 
-# Configuration constants - these would be loaded from environment variables in production
+# Configuration constants
 COSMOS_ENDPOINT = os.environ.get('COSMOS_ENDPOINT')
 COSMOS_WRITE_KEY = os.environ.get('COSMOS_WRITE_KEY')
-API_INSTANCE_NAME = os.environ.get('API_INSTANCE_NAME', 'web')
+COSMOS_DB_NAME = 'camera-trap'
+COSMOS_CONTAINER_NAME = 'batch_api_jobs'
+STORAGE_ACCOUNT_NAME = os.environ.get('STORAGE_ACCOUNT_NAME', 'storage')
+STORAGE_CONTAINER_UPLOAD = os.environ.get('STORAGE_CONTAINER_UPLOAD', 'test-centralised-upload')
 
+def get_job_by_id(container_client, job_id):
+    """
+    Retrieve a job from Cosmos DB by ID.
+    
+    Args:
+        container_client: The Cosmos DB container client
+        job_id: The ID of the job to retrieve
+        
+    Returns:
+        The job document as a dictionary
+        
+    Raises:
+        Exception: If the job cannot be found
+    """
+    try:
+        job_item = container_client.read_item(item=job_id, partition_key=job_id)
+        return job_item
+    except Exception as e:
+        logging.error(f"Failed to retrieve job {job_id}: {str(e)}")
+        raise
+
+
+def ensure_container_sas_url(params):
+    """
+    Ensure the params dictionary has a valid input_container_sas URL.
+    
+    Args:
+        params: The parameters dictionary to check/update
+        
+    Returns:
+        The updated parameters dictionary
+    """
+    if 'input_container_sas' not in params or not params['input_container_sas']:
+        logging.warning("input_container_sas is missing or empty in the request")
+        # Provide a default value
+        params['input_container_sas'] = (
+            f"https://{STORAGE_ACCOUNT_NAME}.blob.core.windows.net/{STORAGE_CONTAINER_UPLOAD}"
+        )
+    
+    return params
+
+
+def update_job_params(container_client, job_item, new_params):
+    """
+    Update a job's parameters in Cosmos DB.
+    
+    Args:
+        container_client: The Cosmos DB container client
+        job_item: The job document to update
+        new_params: The new parameters to set
+        
+    Returns:
+        The updated job document
+    """
+    try:
+        # Update the call_params field
+        job_item['call_params'] = new_params
+        
+        # Update the document in Cosmos DB
+        updated_item = container_client.replace_item(item=job_item, body=job_item)
+        logging.info(f"Updated job parameters for job ID: {job_item['id']}")
+        return updated_item
+    except Exception as e:
+        logging.error(f"Failed to update job parameters: {str(e)}")
+        raise
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('Python HTTP trigger function processed a request to update job parameters.')
+    """
+    Azure Function HTTP trigger to update parameters for an existing job.
+    
+    Args:
+        req: The HTTP request object
+        
+    Returns:
+        An HTTP response indicating success or failure
+    """
+    logging.info('Processing request to update job parameters.')
     
     # Check if the user is authenticated
     client_principal = req.headers.get('x-ms-client-principal')
@@ -43,12 +120,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         
         # Connect to Cosmos DB
         cosmos_client = CosmosClient(COSMOS_ENDPOINT, credential=COSMOS_WRITE_KEY)
-        db_client = cosmos_client.get_database_client('camera-trap')
-        container_client = db_client.get_container_client('batch_api_jobs')
+        db_client = cosmos_client.get_database_client(COSMOS_DB_NAME)
+        container_client = db_client.get_container_client(COSMOS_CONTAINER_NAME)
         
         # Get the current job document
         try:
-            job_item = container_client.read_item(item=job_id, partition_key=job_id)
+            job_item = get_job_by_id(container_client, job_id)
         except Exception as e:
             return func.HttpResponse(
                 json.dumps({"error": f"Job not found: {str(e)}"}),
@@ -60,17 +137,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"Current job parameters: {json.dumps(job_item['call_params'])}")
         logging.info(f"New job parameters: {json.dumps(req_body)}")
         
-        # Make sure input_container_sas is present
-        if 'input_container_sas' not in req_body or not req_body['input_container_sas']:
-            logging.warning("input_container_sas is missing or empty in the request")
-            # Provide a default value
-            req_body['input_container_sas'] = f"https://{os.environ.get('STORAGE_ACCOUNT_NAME', 'storage')}.blob.core.windows.net/{os.environ.get('STORAGE_CONTAINER_UPLOAD', 'test-centralised-upload')}"
+        # Ensure container_sas_url is present
+        req_body = ensure_container_sas_url(req_body)
         
-        # Update the call_params field
-        job_item['call_params'] = req_body
-        
-        # Update the job document in Cosmos DB
-        container_client.replace_item(item=job_item, body=job_item)
+        # Update the job document
+        update_job_params(container_client, job_item, req_body)
         
         return func.HttpResponse(
             json.dumps({"success": True, "message": "Job parameters updated successfully"}),

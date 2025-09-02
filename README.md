@@ -5,6 +5,10 @@ This project is an Azure Static Web App using React (v19.1.1) for the frontend a
 ## Recent Updates
 
 - **2023-11-10**: Fixed issue with `api_instance` field in Cosmos DB being set to 'react_web' instead of 'web'. Now the value is hardcoded to 'web' in the `JobStatusTable` class to ensure consistency.
+- **2023-11-11**: Refactored codebase to improve maintainability:
+  - Reorganized backend code for better separation of concerns and error handling
+  - Created utility files for frontend code organization
+  - Eliminated duplicate code and improved function documentation
 
 ## Prerequisites
 
