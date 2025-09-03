@@ -2,6 +2,13 @@
   "routes": [
     {
       "route": "/api/*",
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "allowedRoles": ["authenticated"]
+    },
+    {
+      "route": "/api-proxy/*",
+      "methods": ["GET", "POST", "PUT", "DELETE"],
+      "rewrite": "http://20.11.8.84:5000/{rest}",
       "allowedRoles": ["authenticated"]
     },
     {
@@ -30,6 +37,19 @@
     }
   },
   "navigationFallback": {
-    "rewrite": "/index.html"
+    "rewrite": "/index.html",
+    "exclude": ["/images/*.{png,jpg,gif}", "/css/*", "/*.{ico,png,jpg,gif}"]
+  },
+  "responseOverrides": {
+    "401": {
+      "statusCode": 302,
+      "redirect": "/.auth/login/aad"
+    }
+  },
+  "globalHeaders": {
+    "Cache-Control": "no-cache"
+  },
+  "mimeTypes": {
+    ".json": "application/json"
   }
 }

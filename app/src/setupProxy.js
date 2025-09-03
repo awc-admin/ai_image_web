@@ -2,8 +2,6 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const bodyParser = require('body-parser');
 
 module.exports = function(app) {
-  console.log('Setting up Flask server proxy middleware...');
-  
   // Parse JSON bodies for API requests - IMPORTANT for POST requests to work properly
   app.use('/api-proxy', bodyParser.json());
   
@@ -16,13 +14,10 @@ module.exports = function(app) {
       pathRewrite: {
         '^/api-proxy': '', // remove the /api-proxy path
       },
-      // Add logging for debugging
-      logLevel: 'debug',
+      // Add logging for debugging in development only
+      logLevel: process.env.NODE_ENV === 'development' ? 'debug' : 'error',
       // Enable all HTTP methods including POST
       onProxyReq: (proxyReq, req, res) => {
-        // Log outgoing request
-        console.log(`Proxying ${req.method} request to: ${req.originalUrl}`);
-        
         // If it's a POST with a body, make sure it's properly handled
         if (req.method === 'POST' && req.body) {
           const bodyData = JSON.stringify(req.body);
@@ -44,9 +39,6 @@ module.exports = function(app) {
         }));
       },
       onProxyRes: (proxyRes, req, res) => {
-        // Log the response status
-        console.log(`Received response: ${proxyRes.statusCode} for ${req.method} ${req.originalUrl}`);
-        
         // Add CORS headers to the response
         proxyRes.headers['Access-Control-Allow-Origin'] = '*';
         proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
@@ -54,6 +46,4 @@ module.exports = function(app) {
       }
     })
   );
-
-  console.log('Flask server proxy middleware set up successfully.');
 };

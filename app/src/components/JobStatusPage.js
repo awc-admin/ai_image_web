@@ -7,6 +7,7 @@ import './JobStatusPage.css';
  * This component displays a table of all jobs created by the current user
  */
 const JobStatusPage = () => {
+  // State management with meaningful variable names
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -17,6 +18,7 @@ const JobStatusPage = () => {
   const [processingJobId, setProcessingJobId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
+  // Effect to fetch jobs data from the API
   useEffect(() => {
     const fetchJobs = async () => {
       try {
@@ -36,7 +38,6 @@ const JobStatusPage = () => {
         setJobs(data);
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch jobs:', err);
         setError('Failed to load jobs. Please try again later.');
       } finally {
         setLoading(false);
@@ -48,32 +49,17 @@ const JobStatusPage = () => {
   
   // Helper function to render the status badge with appropriate color
   const renderStatusBadge = (status) => {
-    let className;
-    switch (status) {
-      case 'created':
-        className = 'status-badge created';
-        break;
-      case 'submitting_job':
-        className = 'status-badge submitting';
-        break;
-      case 'running':
-        className = 'status-badge running';
-        break;
-      case 'completed':
-        className = 'status-badge completed';
-        break;
-      case 'failed':
-      case 'problem':
-        className = 'status-badge error';
-        break;
-      case 'canceled':
-        className = 'status-badge canceled';
-        break;
-      default:
-        className = 'status-badge';
-    }
+    const statusClasses = {
+      'created': 'status-badge created',
+      'submitting_job': 'status-badge submitting',
+      'running': 'status-badge running',
+      'completed': 'status-badge completed',
+      'failed': 'status-badge error',
+      'problem': 'status-badge error',
+      'canceled': 'status-badge canceled'
+    };
     
-    return <span className={className}>{status}</span>;
+    return <span className={statusClasses[status] || 'status-badge'}>{status}</span>;
   };
 
   // Helper function to render message content
@@ -104,15 +90,13 @@ const JobStatusPage = () => {
     return message;
   };
   
-  // Get current jobs for pagination
+  // Pagination logic
   const indexOfLastJob = currentPage * jobsPerPage;
   const indexOfFirstJob = indexOfLastJob - jobsPerPage;
   const currentJobs = jobs.slice(indexOfFirstJob, indexOfLastJob);
-  
-  // Calculate page numbers
   const totalPages = Math.ceil(jobs.length / jobsPerPage);
   
-  // Change page
+  // Pagination controls
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
@@ -123,9 +107,7 @@ const JobStatusPage = () => {
       setProcessingJobId(jobId);
       setActionMessage('');
       
-      console.log(`Sending update status request for job ${jobId}`);
-      
-      // Use the proxy endpoint instead of calling the Flask server directly
+      // Use the proxy endpoint to call the Flask server
       const response = await fetch(`/api-proxy/task/${jobId}`, {
         method: 'GET',
         headers: {
@@ -146,8 +128,6 @@ const JobStatusPage = () => {
         setRefreshTrigger(prev => prev + 1);
       }, 1000);
     } catch (err) {
-      console.error('Failed to update job status:', err);
-      
       // Show a more user-friendly error message
       if (err.message.includes('Failed to fetch')) {
         setActionMessage('Error connecting to the server. Please try again later.');
@@ -167,17 +147,14 @@ const JobStatusPage = () => {
       setActionMessage('');
       setActionMessageType('info');
       
-      // Create the request body - Flask server might expect a specific format
+      // Create the request body for the Flask server
       const requestBody = {
         caller: "awc",
         request_id: jobId,
         api_instance_name: "web"
       };
       
-      console.log(`Sending cancel request for job ${jobId}:`, requestBody);
-      console.log('Request body JSON:', JSON.stringify(requestBody));
-      
-      // Try direct fetch to the Flask server first (bypassing proxy for testing)
+      // Send the cancel request
       const response = await fetch(`/api-proxy/cancel_request`, {
         method: 'POST',
         headers: {
@@ -187,53 +164,13 @@ const JobStatusPage = () => {
         body: JSON.stringify(requestBody)
       });
       
-      console.log('Cancel request status:', response.status);
-      // Try to get response text even if status is not OK
-      const responseText = await response.text();
-      console.log('Cancel request response:', responseText);
-      
-      // If still having issues, uncomment and test this direct approach with CORS headers
-      /*
+      // If the response is not OK, try to extract error details
       if (!response.ok) {
-        console.log('Proxy approach failed, trying direct connection...');
-        // Try direct connection as a fallback
-        const directResponse = await fetch(`http://20.11.8.84:5000/cancel_request`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Access-Control-Allow-Origin': '*'
-          },
-          mode: 'cors',
-          body: JSON.stringify(requestBody)
-        });
-        
-        console.log('Direct cancel request status:', directResponse.status);
-        const directResponseText = await directResponse.text();
-        console.log('Direct cancel request response:', directResponseText);
-        
-        if (!directResponse.ok) {
-          throw new Error(`Error ${directResponse.status}: Direct connection also failed`);
-        }
-        
-        // If we get here, the direct approach succeeded
-        setActionMessage('Job cancelled successfully (direct connection).');
-        setActionMessageType('success');
-        
-        // Refresh the job list
-        setTimeout(() => {
-          setRefreshTrigger(prev => prev + 1);
-        }, 1000);
-        
-        return; // Exit the function since we've handled the request
-      }
-      */
-      
-      if (!response.ok) {
-        // Try to parse the error response
+        const responseText = await response.text();
         let errorDetail = '';
+        
         try {
-          // Try to parse as JSON first
+          // Try to parse as JSON
           const errorJson = JSON.parse(responseText);
           errorDetail = errorJson.error || errorJson.message || responseText;
         } catch (parseError) {
@@ -253,8 +190,6 @@ const JobStatusPage = () => {
         setRefreshTrigger(prev => prev + 1);
       }, 1000);
     } catch (err) {
-      console.error('Failed to cancel job:', err);
-      
       // Show a more user-friendly error message
       if (err.message.includes('Failed to fetch')) {
         setActionMessage('Error connecting to the server. Please try again later.');
@@ -281,13 +216,9 @@ const JobStatusPage = () => {
         </button>
       </div>
       
-      {loading && (
-        <div className="loading-message">Loading job data...</div>
-      )}
+      {loading && <div className="loading-message">Loading job data...</div>}
       
-      {error && (
-        <div className="error-message">{error}</div>
-      )}
+      {error && <div className="error-message">{error}</div>}
       
       {!loading && !error && jobs.length === 0 && (
         <div className="no-jobs-message">
@@ -295,7 +226,6 @@ const JobStatusPage = () => {
         </div>
       )}
       
-      {/* Display action feedback message */}
       {actionMessage && (
         <div className={`action-message ${actionMessageType}`}>
           {actionMessage}
@@ -323,7 +253,6 @@ const JobStatusPage = () => {
                   <tr key={job.id}>
                     <td className="actions-cell col-actions">
                       <div className="actions-button-container">
-                        {/* Update Status button - show for running or problem status */}
                         {(job.request_status === 'running' || job.request_status === 'problem') && (
                           <button 
                             className="action-button update-button"
@@ -335,7 +264,6 @@ const JobStatusPage = () => {
                           </button>
                         )}
                         
-                        {/* Cancel Job button - show for status that is not 'completed' or 'canceled' */}
                         {job.request_status !== 'completed' && job.request_status !== 'canceled' && (
                           <button 
                             className="action-button cancel-button"
@@ -347,7 +275,6 @@ const JobStatusPage = () => {
                           </button>
                         )}
                         
-                        {/* Empty spacer if no buttons to maintain consistent height */}
                         {(job.request_status !== 'running' && job.request_status !== 'problem' && 
                           (job.request_status === 'completed' || job.request_status === 'canceled')) && (
                           <div className="button-spacer"></div>
@@ -367,7 +294,6 @@ const JobStatusPage = () => {
             </table>
           </div>
           
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="pagination">
               <button 
