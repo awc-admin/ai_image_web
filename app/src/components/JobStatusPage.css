@@ -81,7 +81,8 @@
 .jobs-table {
   width: 100%;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate; /* Changed from collapse to separate */
+  border-spacing: 0; /* No gaps between cells */
   background-color: #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   font-size: 0.9rem;
@@ -89,22 +90,25 @@
 
 .jobs-table th,
 .jobs-table td {
-  padding: 0.75rem 1rem;
+  padding: 1rem;
   text-align: left;
-  border-bottom: 1px solid #e0e0e0;
   font-size: 0.9rem;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
 }
 
+/* Apply border to rows instead of cells for consistent lines */
+.jobs-table tr {
+  border-bottom: 1px solid #e0e0e0;
+}
+
 .jobs-table tbody tr {
-  height: 80px; /* Set a consistent row height for body rows */
   line-height: 1.5;
 }
 
 .jobs-table thead tr {
-  height: auto; /* Let the header row have its natural height */
+  background-color: #f5f5f5;
 }
 
 .jobs-table th {
@@ -116,6 +120,11 @@
 
 .jobs-table tbody tr:hover {
   background-color: #f0f7ff;
+}
+
+/* Ensure consistent table cell appearance */
+.jobs-table td {
+  height: 1px; /* This forces all cells to have the same height */
 }
 
 /* Column-specific styles */
@@ -187,14 +196,9 @@
 
 /* Action buttons */
 .actions-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   min-width: 110px;
-  padding: 8px;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
+  padding: 0.75rem;
+  vertical-align: middle;
 }
 
 .action-button {
@@ -208,6 +212,7 @@
   transition: background-color 0.2s ease;
   width: 100%;
   text-align: center;
+  margin: 4px 0;
 }
 
 .update-button {
@@ -235,25 +240,32 @@
   cursor: not-allowed;
 }
 
-/* Ensure action buttons container has consistent height */
+/* Ensure action buttons container has consistent appearance */
 .actions-button-container {
-  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 8px;
+  min-height: 38px; /* Minimum height to ensure consistent row height */
+  padding: 4px 0;
+}
+
+/* Empty spacer to maintain consistent cell height when no buttons */
+.button-spacer {
+  height: 30px; /* Match button height */
+  width: 100%;
 }
 
 /* Action message styling */
 .action-message {
   margin: 1rem 0;
-  padding: 10px 15px;
+  padding: 12px 16px;
   background-color: #e6f7ff;
   border-left: 4px solid #0078d4;
   color: #333;
   font-size: 0.9rem;
   border-radius: 0 4px 4px 0;
+  text-align: center;
 }
 
 /* Success action message */

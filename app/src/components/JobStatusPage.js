@@ -346,6 +346,12 @@ const JobStatusPage = () => {
                             {processingJobId === job.id ? 'Cancelling...' : 'Cancel Job'}
                           </button>
                         )}
+                        
+                        {/* Empty spacer if no buttons to maintain consistent height */}
+                        {(job.request_status !== 'running' && job.request_status !== 'problem' && 
+                          (job.request_status === 'completed' || job.request_status === 'canceled')) && (
+                          <div className="button-spacer"></div>
+                        )}
                       </div>
                     </td>
                     <td className="job-id col-job-id">{job.id}</td>
