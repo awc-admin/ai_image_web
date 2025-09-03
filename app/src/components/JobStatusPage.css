@@ -51,6 +51,7 @@
 
 .jobs-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   background-color: #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
@@ -63,6 +64,8 @@
   text-align: left;
   border-bottom: 1px solid #e0e0e0;
   font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .jobs-table th {
@@ -77,20 +80,65 @@
 }
 
 /* Column-specific styles */
+/* Define column widths */
+.col-job-id {
+  width: 18%;
+}
+
+.col-status {
+  width: 10%;
+}
+
+.col-message {
+  width: 20%;
+}
+
+.col-folder {
+  width: 14%;
+}
+
+.col-images {
+  width: 10%;
+}
+
+.col-submission {
+  width: 14%;
+}
+
+.col-updated {
+  width: 14%;
+}
+
 .jobs-table .job-id {
   font-family: monospace;
   font-size: 0.85rem;
-  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .jobs-table .message-cell {
-  max-width: 300px;
-  white-space: nowrap;
+  max-width: 220px;
+  width: 220px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  padding: 8px 12px;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.85rem;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+/* Message link styling */
+.message-link {
+  color: #0078d4;
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.message-link:hover {
+  text-decoration: underline;
 }
 
 .jobs-table .numeric {
@@ -162,6 +210,71 @@
   background-color: #106ebe;
 }
 
+/* Pagination styling */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1.5rem;
+  gap: 0.5rem;
+}
+
+.pagination-button {
+  padding: 0.5rem 0.75rem;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #333;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.pagination-button:hover:not(:disabled) {
+  background-color: #e0e0e0;
+}
+
+.pagination-button:disabled {
+  color: #999;
+  cursor: not-allowed;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.page-number {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.page-number:hover {
+  background-color: #f0f0f0;
+}
+
+.page-number.active {
+  background-color: #0078d4;
+  color: white;
+  border-color: #0078d4;
+}
+
+.pagination-info {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.75rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .job-status-container {
@@ -181,5 +294,10 @@
   
   .message-cell {
     max-width: 150px;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: 0.75rem;
   }
 }

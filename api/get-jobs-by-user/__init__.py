@@ -122,19 +122,52 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             
             # Handle complex message objects
             if 'message' in item:
+                # If message is a dictionary
                 if isinstance(item['message'], dict):
-                    # Special handling for known object types
-                    if 'output_file_urls' in item['message']:
-                        item['message'] = item['message']['output_file_urls']
-                    elif 'detections' in item['message']:
-                        # For objects with detections key, provide a summary
-                        detection_count = len(item['message']['detections']) if isinstance(item['message']['detections'], list) else 'multiple'
-                        item['message'] = f"Processing complete: {detection_count} detections"
+                    # If it contains the 'detections' key directly, extract the URL
+                    if 'detections' in item['message'] and isinstance(item['message']['detections'], str):
+                        item['message'] = {
+                            'text': 'View Detections',
+                            'url': item['message']['detections']
+                        }
+                    # If it contains 'output_file_urls' key, extract from there
+                    elif 'output_file_urls' in item['message']:
+                        # If output_file_urls is itself a dictionary with 'detections'
+                        if isinstance(item['message']['output_file_urls'], dict) and 'detections' in item['message']['output_file_urls']:
+                            item['message'] = {
+                                'text': 'View Detections',
+                                'url': item['message']['output_file_urls']['detections']
+                            }
+                        # If output_file_urls is a string
+                        elif isinstance(item['message']['output_file_urls'], str):
+                            item['message'] = {
+                                'text': 'View Output Files',
+                                'url': item['message']['output_file_urls']
+                            }
+                        # Otherwise, convert the whole thing to a string for safety
+                        else:
+                            item['message'] = {
+                                'text': 'View Results',
+                                'url': '#'
+                            }
+                    # For any other dictionary, look for any URL-like string values
                     else:
-                        # For other dictionaries, convert to string
-                        item['message'] = json.dumps(item['message'])
-                # Ensure message is always a string
-                if not isinstance(item['message'], str):
+                        url_found = False
+                        for key, value in item['message'].items():
+                            if isinstance(value, str) and ('http://' in value or 'https://' in value):
+                                item['message'] = {
+                                    'text': f'View {key.replace("_", " ").title()}',
+                                    'url': value
+                                }
+                                url_found = True
+                                break
+                        
+                        if not url_found:
+                            # If no URL found, make it a simple message
+                            item['message'] = "Results available"
+                
+                # Ensure message is always a string or a proper link object
+                if not isinstance(item['message'], (str, dict)):
                     item['message'] = str(item['message'])
             
             processed_items.append(item)
