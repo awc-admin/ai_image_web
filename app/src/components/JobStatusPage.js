@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { getUserId } from '../utils/mockAuth';
-import { useLocation } from 'react-router-dom';
 import './JobStatusPage.css';
 
 /**
@@ -114,22 +113,6 @@ const JobStatusPage = () => {
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
 
-  // Hide the create job button when on status page
-  useEffect(() => {
-    // Find and hide the Create Job button in the nav when on status page
-    const createJobLink = document.querySelector('.main-nav .nav-link:first-child');
-    if (createJobLink) {
-      createJobLink.style.display = 'none';
-    }
-    
-    // Show it again when component unmounts
-    return () => {
-      if (createJobLink) {
-        createJobLink.style.display = '';
-      }
-    };
-  }, []);
-  
   return (
     <div className="job-status-container">
       <h2>Job Status</h2>
