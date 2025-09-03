@@ -322,29 +322,31 @@ const JobStatusPage = () => {
                 {currentJobs.map(job => (
                   <tr key={job.id}>
                     <td className="actions-cell col-actions">
-                      {/* Update Status button - show for running or problem status */}
-                      {(job.request_status === 'running' || job.request_status === 'problem') && (
-                        <button 
-                          className="action-button update-button"
-                          onClick={() => handleUpdateStatus(job.id)}
-                          disabled={processingJobId === job.id}
-                          title="Update the status of this job"
-                        >
-                          {processingJobId === job.id ? 'Updating...' : 'Update Status'}
-                        </button>
-                      )}
-                      
-                      {/* Cancel Job button - show for non-completed status */}
-                      {job.request_status !== 'completed' && (
-                        <button 
-                          className="action-button cancel-button"
-                          onClick={() => handleCancelJob(job.id)}
-                          disabled={processingJobId === job.id}
-                          title="Cancel this job"
-                        >
-                          {processingJobId === job.id ? 'Cancelling...' : 'Cancel Job'}
-                        </button>
-                      )}
+                      <div className="actions-button-container">
+                        {/* Update Status button - show for running or problem status */}
+                        {(job.request_status === 'running' || job.request_status === 'problem') && (
+                          <button 
+                            className="action-button update-button"
+                            onClick={() => handleUpdateStatus(job.id)}
+                            disabled={processingJobId === job.id}
+                            title="Update the status of this job"
+                          >
+                            {processingJobId === job.id ? 'Updating...' : 'Update Status'}
+                          </button>
+                        )}
+                        
+                        {/* Cancel Job button - show for status that is not 'completed' or 'canceled' */}
+                        {job.request_status !== 'completed' && job.request_status !== 'canceled' && (
+                          <button 
+                            className="action-button cancel-button"
+                            onClick={() => handleCancelJob(job.id)}
+                            disabled={processingJobId === job.id}
+                            title="Cancel this job"
+                          >
+                            {processingJobId === job.id ? 'Cancelling...' : 'Cancel Job'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="job-id col-job-id">{job.id}</td>
                     <td className="col-status">{renderStatusBadge(job.request_status)}</td>

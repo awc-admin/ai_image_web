@@ -95,6 +95,16 @@
   font-size: 0.9rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.jobs-table tbody tr {
+  height: 80px; /* Set a consistent row height for body rows */
+  line-height: 1.5;
+}
+
+.jobs-table thead tr {
+  height: auto; /* Let the header row have its natural height */
 }
 
 .jobs-table th {
@@ -182,6 +192,9 @@
   gap: 8px;
   min-width: 110px;
   padding: 8px;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
 }
 
 .action-button {
@@ -220,6 +233,16 @@
 .action-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Ensure action buttons container has consistent height */
+.actions-button-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* Action message styling */
