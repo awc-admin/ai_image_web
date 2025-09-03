@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { getUserId } from '../utils/mockAuth';
 import './JobStatusPage.css';
 
+// Flask server URL for job operations
+const FLASK_SERVER_URL = 'http://20.11.8.84:5000';
+
 /**
  * Job Status Page Component
  * This component displays a table of all jobs created by the current user
@@ -12,6 +15,8 @@ const JobStatusPage = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [jobsPerPage] = useState(5);
+  const [actionMessage, setActionMessage] = useState('');
+  const [processingJobId, setProcessingJobId] = useState(null);
   
   useEffect(() => {
     const fetchJobs = async () => {
@@ -112,6 +117,63 @@ const JobStatusPage = () => {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+  
+  // Function to handle updating job status
+  const handleUpdateStatus = async (jobId) => {
+    try {
+      setProcessingJobId(jobId);
+      setActionMessage('');
+      
+      // Send GET request to update status
+      const response = await fetch(`${FLASK_SERVER_URL}/task/${jobId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      setActionMessage('Update request sent. Please reload the page for the latest status.');
+    } catch (err) {
+      console.error('Failed to update job status:', err);
+      setActionMessage(`Error: ${err.message}. Please try again.`);
+    } finally {
+      setTimeout(() => setProcessingJobId(null), 1000);
+    }
+  };
+  
+  // Function to handle cancelling a job
+  const handleCancelJob = async (jobId) => {
+    try {
+      setProcessingJobId(jobId);
+      setActionMessage('');
+      
+      // Create the request body
+      const requestBody = {
+        caller: "awc",
+        request_id: jobId,
+        api_instance_name: "web"
+      };
+      
+      // Send POST request to cancel the job
+      const response = await fetch(`${FLASK_SERVER_URL}/cancel_request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      setActionMessage('Cancel request sent. Please reload the page for the latest status.');
+    } catch (err) {
+      console.error('Failed to cancel job:', err);
+      setActionMessage(`Error: ${err.message}. Please try again.`);
+    } finally {
+      setTimeout(() => setProcessingJobId(null), 1000);
+    }
+  };
 
   return (
     <div className="job-status-container">
@@ -131,12 +193,20 @@ const JobStatusPage = () => {
         </div>
       )}
       
+      {/* Display action feedback message */}
+      {actionMessage && (
+        <div className="action-message">
+          {actionMessage}
+        </div>
+      )}
+
       {!loading && !error && jobs.length > 0 && (
         <>
           <div className="table-container">
             <table className="jobs-table">
               <thead>
                 <tr>
+                  <th className="col-actions">Actions</th>
                   <th className="col-job-id">Job ID</th>
                   <th className="col-status">Status</th>
                   <th className="col-message">Message</th>
@@ -149,6 +219,29 @@ const JobStatusPage = () => {
               <tbody>
                 {currentJobs.map(job => (
                   <tr key={job.id}>
+                    <td className="actions-cell col-actions">
+                      {/* Update Status button - show for running or problem status */}
+                      {(job.request_status === 'running' || job.request_status === 'problem') && (
+                        <button 
+                          className="action-button update-button"
+                          onClick={() => handleUpdateStatus(job.id)}
+                          disabled={processingJobId === job.id}
+                        >
+                          {processingJobId === job.id ? 'Updating...' : 'Update Status'}
+                        </button>
+                      )}
+                      
+                      {/* Cancel Job button - show for non-completed status */}
+                      {job.request_status !== 'completed' && (
+                        <button 
+                          className="action-button cancel-button"
+                          onClick={() => handleCancelJob(job.id)}
+                          disabled={processingJobId === job.id}
+                        >
+                          {processingJobId === job.id ? 'Cancelling...' : 'Cancel Job'}
+                        </button>
+                      )}
+                    </td>
                     <td className="job-id col-job-id">{job.id}</td>
                     <td className="col-status">{renderStatusBadge(job.request_status)}</td>
                     <td className="message-cell col-message">{renderMessage(job.message)}</td>

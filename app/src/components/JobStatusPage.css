@@ -81,8 +81,12 @@
 
 /* Column-specific styles */
 /* Define column widths */
+.col-actions {
+  width: 12%;
+}
+
 .col-job-id {
-  width: 18%;
+  width: 16%;
 }
 
 .col-status {
@@ -139,6 +143,60 @@
 
 .message-link:hover {
   text-decoration: underline;
+}
+
+/* Action buttons */
+.actions-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.action-button {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.update-button {
+  background-color: #e6f7ff;
+  color: #0078d4;
+  border: 1px solid #0078d4;
+}
+
+.update-button:hover:not(:disabled) {
+  background-color: #cceeff;
+}
+
+.cancel-button {
+  background-color: #fff1f0;
+  color: #d83b01;
+  border: 1px solid #d83b01;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background-color: #ffdfdc;
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Action message styling */
+.action-message {
+  margin: 1rem 0;
+  padding: 10px 15px;
+  background-color: #e6f7ff;
+  border-left: 4px solid #0078d4;
+  color: #333;
+  font-size: 0.9rem;
+  border-radius: 0 4px 4px 0;
 }
 
 .jobs-table .numeric {
