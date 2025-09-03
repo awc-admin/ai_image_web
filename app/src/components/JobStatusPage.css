@@ -2,7 +2,7 @@
 
 .job-status-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1400px; /* Increased from 1200px to provide more width */
   margin: 0 auto 2rem auto;
   padding: 2rem;
   background-color: #ffffff;
@@ -76,6 +76,7 @@
 .table-container {
   overflow-x: auto;
   margin-bottom: 2rem;
+  padding: 0 0.5rem; /* Add horizontal padding for better spacing */
 }
 
 .jobs-table {
@@ -109,13 +110,22 @@
 
 .jobs-table thead tr {
   background-color: #f5f5f5;
+  border-bottom: 2px solid #ddd; /* Add a thicker border below the header */
+}
+
+/* Add bottom border to header cells for better separation */
+.jobs-table th {
+  border-bottom: 2px solid #ddd;
 }
 
 .jobs-table th {
   background-color: #f5f5f5;
   color: #333;
   font-weight: 600;
-  white-space: nowrap;
+  white-space: normal; /* Changed from nowrap to allow wrapping if needed */
+  line-height: 1.2;
+  padding: 10px;
+  font-size: 0.85rem; /* Slightly smaller font to fit better */
 }
 
 .jobs-table tbody tr:hover {
@@ -135,11 +145,11 @@
 }
 
 .col-job-id {
-  width: 15%;
+  width: 14%;
 }
 
 .col-status {
-  width: 10%;
+  width: 8%;
 }
 
 .col-message {
@@ -147,19 +157,19 @@
 }
 
 .col-folder {
-  width: 14%;
-}
-
-.col-images {
   width: 10%;
 }
 
+.col-images {
+  width: 12%; /* Widened to fit "Number of Images" */
+}
+
 .col-submission {
-  width: 14%;
+  width: 16%; /* Widened to fit "Job Submission Time" */
 }
 
 .col-updated {
-  width: 14%;
+  width: 16%;
 }
 
 .jobs-table .job-id {
@@ -417,16 +427,36 @@
 }
 
 /* Responsive adjustments */
+@media (max-width: 1200px) {
+  /* Adjustments for medium screens */
+  .col-job-id {
+    width: 15%;
+  }
+  
+  .col-message {
+    width: 18%;
+  }
+  
+  .col-images {
+    width: 10%;
+  }
+  
+  .col-submission, .col-updated {
+    width: 15%;
+  }
+}
+
 @media (max-width: 768px) {
   .job-status-container {
     margin: 1rem;
     padding: 1.5rem;
+    max-width: 100%;
   }
   
   .jobs-table th,
   .jobs-table td {
     padding: 0.5rem;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
   
   .job-id {
@@ -440,5 +470,16 @@
   .pagination {
     flex-direction: column;
     gap: 0.75rem;
+  }
+  
+  /* Allow horizontal scrolling on small screens */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure the table takes full width */
+  .jobs-table {
+    min-width: 900px;
   }
 }
