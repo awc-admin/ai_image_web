@@ -39,6 +39,19 @@ export const getDefaultFormData = () => ({
 });
 
 /**
+ * Sanitize a string for Cosmos DB by replacing invalid characters with underscores
+ * 
+ * @param {string} value - The string to sanitize
+ * @returns {string} - Sanitized string with invalid characters replaced by underscores
+ */
+export const sanitizeForCosmosDb = (value) => {
+  if (!value) return '';
+  // Replace any character that is not a-z, A-Z, 0-9, period, underscore, or hyphen with underscore
+  const invalidCharsPattern = /[^a-zA-Z0-9._-]/g;
+  return value.toString().replace(invalidCharsPattern, '_');
+};
+
+/**
  * Map form data to API format
  * 
  * @param {Object} formData - The form data to transform
@@ -56,7 +69,7 @@ export const mapFormDataToApiFormat = (formData, userId, imageCount, imagePath) 
     do_smoothing: formData.performSmoothing,
     num_images: imageCount,
     image_path_prefix: imagePath,
-    request_name: userId,
+    request_name: sanitizeForCosmosDb(userId),
     api_instance_name: 'web',
     input_container_sas: ''
   };

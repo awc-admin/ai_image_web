@@ -109,6 +109,12 @@ class JobStatusTable:
         if 'input_container_sas' in call_params:
             del call_params['input_container_sas']
             
+        # Sanitize request_name for Cosmos DB
+        if 'request_name' in call_params:
+            import re
+            invalid_chars_pattern = r'[^a-zA-Z0-9._-]'
+            call_params['request_name'] = re.sub(invalid_chars_pattern, '_', call_params['request_name'])
+            
         # Add 'caller' field with hard-coded value "awc"
         call_params['caller'] = 'awc'
         
