@@ -29,19 +29,19 @@ function App() {
               <Link to="/status" className="nav-link">View Job Status</Link>
             </nav>
           )}
+          
+          {/* Routes for different pages */}
+          {isAuthenticated && !loading && (
+            <Routes>
+              <Route path="/status" element={<JobStatusPage />} />
+              <Route path="/" element={
+                <div className="job-form-wrapper">
+                  <JobForm />
+                </div>
+              } />
+            </Routes>
+          )}
         </header>
-
-        {/* Routes for different pages */}
-        {isAuthenticated && !loading && (
-          <Routes>
-            <Route path="/status" element={<JobStatusPage />} />
-            <Route path="/" element={
-              <div className="job-form-wrapper">
-                <JobForm />
-              </div>
-            } />
-          </Routes>
-        )}
       </div>
     </Router>
   );

@@ -9,7 +9,7 @@
       "methods": [
         "get"
       ],
-      "route": "get-jobs-by-user/{userId?}"
+      "route": "get-jobs-by-user"
     },
     {
       "type": "http",

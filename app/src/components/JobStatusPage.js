@@ -20,7 +20,7 @@ const JobStatusPage = () => {
         const userId = await getUserId();
         
         // Fetch jobs from the API
-        const response = await fetch(`/api/get-jobs-by-user/${encodeURIComponent(userId)}`);
+        const response = await fetch(`/api/get-jobs-by-user?userId=${encodeURIComponent(userId)}`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -107,7 +107,7 @@ const JobStatusPage = () => {
                 <tr key={job.id}>
                   <td className="job-id">{job.id}</td>
                   <td>{renderStatusBadge(job.request_status)}</td>
-                  <td className="message-cell">{job.message}</td>
+                  <td className="message-cell">{typeof job.message === 'object' ? JSON.stringify(job.message) : job.message || '-'}</td>
                   <td>{job.folder_name || '-'}</td>
                   <td className="numeric">{job.num_images}</td>
                   <td>{job.job_submission_time}</td>

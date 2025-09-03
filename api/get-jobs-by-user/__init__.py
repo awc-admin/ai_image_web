@@ -60,7 +60,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     
     try:
         # Get the user ID from the route parameter or query string
-        user_id = req.route_params.get('userId') or req.params.get('userId')
+        user_id = req.params.get('userId')
         
         if not user_id:
             return func.HttpResponse(
@@ -68,6 +68,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400,
                 mimetype="application/json"
             )
+        
+        # Sanitize the user ID to match the sanitization used when creating jobs
+        import re
+        invalid_chars_pattern = r'[^a-zA-Z0-9._-]'
+        sanitized_user_id = re.sub(invalid_chars_pattern, '_', user_id)
+        logging.info(f"Sanitized user ID '{user_id}' to '{sanitized_user_id}'")
         
         # Connect to Cosmos DB
         cosmos_client = CosmosClient(COSMOS_ENDPOINT, credential=COSMOS_READ_KEY)
@@ -89,9 +95,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         ORDER BY c.job_submission_time DESC
         """
         
-        # Define the parameters
+        # Define the parameters - use the sanitized user ID for the query
         parameters = [
-            {"name": "@userId", "value": user_id}
+            {"name": "@userId", "value": sanitized_user_id}
         ]
         
         # Execute the query
@@ -113,6 +119,23 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             # Extract folder name from image_path_prefix
             if 'image_path_prefix' in item:
                 item['folder_name'] = extract_folder_name(item['image_path_prefix'])
+            
+            # Handle complex message objects
+            if 'message' in item:
+                if isinstance(item['message'], dict):
+                    # Special handling for known object types
+                    if 'output_file_urls' in item['message']:
+                        item['message'] = item['message']['output_file_urls']
+                    elif 'detections' in item['message']:
+                        # For objects with detections key, provide a summary
+                        detection_count = len(item['message']['detections']) if isinstance(item['message']['detections'], list) else 'multiple'
+                        item['message'] = f"Processing complete: {detection_count} detections"
+                    else:
+                        # For other dictionaries, convert to string
+                        item['message'] = json.dumps(item['message'])
+                # Ensure message is always a string
+                if not isinstance(item['message'], str):
+                    item['message'] = str(item['message'])
             
             processed_items.append(item)
         
