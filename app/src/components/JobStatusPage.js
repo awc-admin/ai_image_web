@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { getUserId } from '../utils/mockAuth';
 import './JobStatusPage.css';
 
-// Flask server URL for job operations
-const FLASK_SERVER_URL = 'http://20.11.8.84:5000';
-
 /**
  * Job Status Page Component
  * This component displays a table of all jobs created by the current user
@@ -16,7 +13,9 @@ const JobStatusPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [jobsPerPage] = useState(5);
   const [actionMessage, setActionMessage] = useState('');
+  const [actionMessageType, setActionMessageType] = useState('info'); // 'info', 'success', or 'error'
   const [processingJobId, setProcessingJobId] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   useEffect(() => {
     const fetchJobs = async () => {
@@ -45,7 +44,7 @@ const JobStatusPage = () => {
     };
     
     fetchJobs();
-  }, []);
+  }, [refreshTrigger]);
   
   // Helper function to render the status badge with appropriate color
   const renderStatusBadge = (status) => {
@@ -124,17 +123,38 @@ const JobStatusPage = () => {
       setProcessingJobId(jobId);
       setActionMessage('');
       
-      // Send GET request to update status
-      const response = await fetch(`${FLASK_SERVER_URL}/task/${jobId}`);
+      console.log(`Sending update status request for job ${jobId}`);
+      
+      // Use the proxy endpoint instead of calling the Flask server directly
+      const response = await fetch(`/api-proxy/task/${jobId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       
-      setActionMessage('Update request sent. Please reload the page for the latest status.');
+      // Set success message
+      setActionMessage('Status updated successfully.');
+      setActionMessageType('success');
+      
+      // Refresh the job list
+      setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+      }, 1000);
     } catch (err) {
       console.error('Failed to update job status:', err);
-      setActionMessage(`Error: ${err.message}. Please try again.`);
+      
+      // Show a more user-friendly error message
+      if (err.message.includes('Failed to fetch')) {
+        setActionMessage('Error connecting to the server. Please try again later.');
+      } else {
+        setActionMessage(`Error: ${err.message}. Please try again.`);
+      }
+      setActionMessageType('error');
     } finally {
       setTimeout(() => setProcessingJobId(null), 1000);
     }
@@ -145,31 +165,103 @@ const JobStatusPage = () => {
     try {
       setProcessingJobId(jobId);
       setActionMessage('');
+      setActionMessageType('info');
       
-      // Create the request body
+      // Create the request body - Flask server might expect a specific format
       const requestBody = {
         caller: "awc",
         request_id: jobId,
         api_instance_name: "web"
       };
       
-      // Send POST request to cancel the job
-      const response = await fetch(`${FLASK_SERVER_URL}/cancel_request`, {
+      console.log(`Sending cancel request for job ${jobId}:`, requestBody);
+      console.log('Request body JSON:', JSON.stringify(requestBody));
+      
+      // Try direct fetch to the Flask server first (bypassing proxy for testing)
+      const response = await fetch(`/api-proxy/cancel_request`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify(requestBody)
       });
       
+      console.log('Cancel request status:', response.status);
+      // Try to get response text even if status is not OK
+      const responseText = await response.text();
+      console.log('Cancel request response:', responseText);
+      
+      // If still having issues, uncomment and test this direct approach with CORS headers
+      /*
       if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
+        console.log('Proxy approach failed, trying direct connection...');
+        // Try direct connection as a fallback
+        const directResponse = await fetch(`http://20.11.8.84:5000/cancel_request`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          mode: 'cors',
+          body: JSON.stringify(requestBody)
+        });
+        
+        console.log('Direct cancel request status:', directResponse.status);
+        const directResponseText = await directResponse.text();
+        console.log('Direct cancel request response:', directResponseText);
+        
+        if (!directResponse.ok) {
+          throw new Error(`Error ${directResponse.status}: Direct connection also failed`);
+        }
+        
+        // If we get here, the direct approach succeeded
+        setActionMessage('Job cancelled successfully (direct connection).');
+        setActionMessageType('success');
+        
+        // Refresh the job list
+        setTimeout(() => {
+          setRefreshTrigger(prev => prev + 1);
+        }, 1000);
+        
+        return; // Exit the function since we've handled the request
+      }
+      */
+      
+      if (!response.ok) {
+        // Try to parse the error response
+        let errorDetail = '';
+        try {
+          // Try to parse as JSON first
+          const errorJson = JSON.parse(responseText);
+          errorDetail = errorJson.error || errorJson.message || responseText;
+        } catch (parseError) {
+          // If not JSON, use the response text directly
+          errorDetail = responseText || `Status ${response.status}`;
+        }
+        
+        throw new Error(`Error ${response.status}: ${errorDetail}`);
       }
       
-      setActionMessage('Cancel request sent. Please reload the page for the latest status.');
+      // Set success message
+      setActionMessage('Job cancelled successfully.');
+      setActionMessageType('success');
+      
+      // Refresh the job list
+      setTimeout(() => {
+        setRefreshTrigger(prev => prev + 1);
+      }, 1000);
     } catch (err) {
       console.error('Failed to cancel job:', err);
-      setActionMessage(`Error: ${err.message}. Please try again.`);
+      
+      // Show a more user-friendly error message
+      if (err.message.includes('Failed to fetch')) {
+        setActionMessage('Error connecting to the server. Please try again later.');
+      } else {
+        setActionMessage(`Error: ${err.message}. Please try again.`);
+      }
+      setActionMessageType('error');
     } finally {
       setTimeout(() => setProcessingJobId(null), 1000);
     }
@@ -178,6 +270,16 @@ const JobStatusPage = () => {
   return (
     <div className="job-status-container">
       <h2>Job Status</h2>
+      
+      <div className="controls">
+        <button 
+          className="refresh-button"
+          onClick={() => setRefreshTrigger(prev => prev + 1)}
+          disabled={loading}
+        >
+          {loading ? 'Loading...' : 'Refresh Jobs'}
+        </button>
+      </div>
       
       {loading && (
         <div className="loading-message">Loading job data...</div>
@@ -195,7 +297,7 @@ const JobStatusPage = () => {
       
       {/* Display action feedback message */}
       {actionMessage && (
-        <div className="action-message">
+        <div className={`action-message ${actionMessageType}`}>
           {actionMessage}
         </div>
       )}
@@ -226,6 +328,7 @@ const JobStatusPage = () => {
                           className="action-button update-button"
                           onClick={() => handleUpdateStatus(job.id)}
                           disabled={processingJobId === job.id}
+                          title="Update the status of this job"
                         >
                           {processingJobId === job.id ? 'Updating...' : 'Update Status'}
                         </button>
@@ -237,6 +340,7 @@ const JobStatusPage = () => {
                           className="action-button cancel-button"
                           onClick={() => handleCancelJob(job.id)}
                           disabled={processingJobId === job.id}
+                          title="Cancel this job"
                         >
                           {processingJobId === job.id ? 'Cancelling...' : 'Cancel Job'}
                         </button>

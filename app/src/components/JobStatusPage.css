@@ -13,9 +13,38 @@
 
 .job-status-container h2 {
   color: #0078d4;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   text-align: center;
   font-size: 1.8rem;
+}
+
+/* Controls section */
+.controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.refresh-button {
+  padding: 0.5rem 1rem;
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #333;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background-color: #e0e0e0;
+  color: #0078d4;
+}
+
+.refresh-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .loading-message {
@@ -82,11 +111,12 @@
 /* Column-specific styles */
 /* Define column widths */
 .col-actions {
-  width: 12%;
+  width: 120px;
+  min-width: 120px;
 }
 
 .col-job-id {
-  width: 16%;
+  width: 15%;
 }
 
 .col-status {
@@ -149,11 +179,13 @@
 .actions-cell {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
+  min-width: 110px;
+  padding: 8px;
 }
 
 .action-button {
-  padding: 4px 8px;
+  padding: 6px 10px;
   font-size: 0.8rem;
   border-radius: 4px;
   cursor: pointer;
@@ -161,6 +193,8 @@
   font-weight: 500;
   white-space: nowrap;
   transition: background-color 0.2s ease;
+  width: 100%;
+  text-align: center;
 }
 
 .update-button {
@@ -197,6 +231,20 @@
   color: #333;
   font-size: 0.9rem;
   border-radius: 0 4px 4px 0;
+}
+
+/* Success action message */
+.action-message.success {
+  background-color: #dff6dd;
+  border-left: 4px solid #107c10;
+  color: #107c10;
+}
+
+/* Error action message */
+.action-message.error {
+  background-color: #fde7e9;
+  border-left: 4px solid #d83b01;
+  color: #d83b01;
 }
 
 .jobs-table .numeric {
