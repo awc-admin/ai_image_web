@@ -245,6 +245,29 @@
   background-color: #ffdfdc;
 }
 
+.modify-button {
+  background-color: #f0eaf4;
+  color: #5c2d91;
+  border: 1px solid #5c2d91;
+}
+
+.modify-button:hover:not(:disabled) {
+  background-color: #e3d7ee;
+}
+
+.modify-button {
+  background-color: #f0eaf4;
+  color: #5c2d91;
+  border: 1px solid #5c2d91;
+  padding: 5px 10px;
+  font-weight: bold;
+}
+
+.modify-button:hover:not(:disabled) {
+  background-color: #e3d7ee;
+  color: #4a2376;
+}
+
 .action-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -258,6 +281,13 @@
   gap: 8px;
   min-height: 38px; /* Minimum height to ensure consistent row height */
   padding: 4px 0;
+}
+
+/* For tables with 3 buttons, we need to adjust spacing */
+.actions-button-container .action-button {
+  margin: 2px 0;
+  padding: 5px 8px;
+  font-size: 0.75rem;
 }
 
 /* Empty spacer to maintain consistent cell height when no buttons */

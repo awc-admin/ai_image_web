@@ -3,6 +3,7 @@ import './App.css';
 import Authentication from './components/Authentication';
 import JobForm from './components/JobForm';
 import JobStatusPage from './components/JobStatusPage';
+import ModifyJobForm from './components/ModifyJobForm';
 import { useAuth } from './hooks/useAuth';
 import './components/Authentication.css';
 import { useEffect, useState } from 'react';
@@ -42,6 +43,7 @@ function AppContent() {
         {isAuthenticated && !loading && (
           <Routes>
             <Route path="/status" element={<JobStatusPage />} />
+            <Route path="/modify-job" element={<ModifyJobForm />} />
             <Route path="/" element={
               <div className="job-form-wrapper">
                 <JobForm />

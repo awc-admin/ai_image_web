@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUserId } from '../utils/mockAuth';
+import { useNavigate } from 'react-router-dom';
 import './JobStatusPage.css';
 
 /**
@@ -17,6 +18,7 @@ const JobStatusPage = () => {
   const [actionMessageType, setActionMessageType] = useState('info'); // 'info', 'success', or 'error'
   const [processingJobId, setProcessingJobId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const navigate = useNavigate();
   
   // Effect to fetch jobs data from the API
   useEffect(() => {
@@ -100,6 +102,11 @@ const JobStatusPage = () => {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
   const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
   const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+  
+  // Function for refreshing the job list
+  const refreshJobList = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
   
   // Function to handle updating job status
   const handleUpdateStatus = async (jobId) => {
@@ -201,6 +208,32 @@ const JobStatusPage = () => {
       setTimeout(() => setProcessingJobId(null), 1000);
     }
   };
+  
+  // Function to handle modifying job parameters
+  const handleModifyJob = (job) => {
+    // Create a log to see if the function is being called
+    console.log('Modify job clicked for job ID:', job.id);
+    
+    try {
+      // Store the job details in session storage to access in the modify form
+      const jobData = {
+        jobId: job.id,
+        folderName: job.folder_name || '',
+        imagePath: job.image_path_prefix || `${job.id}/${job.folder_name || ''}`,
+        numImages: job.num_images || 0
+      };
+      
+      console.log('Storing job details in session storage:', jobData);
+      sessionStorage.setItem('modifyJobDetails', JSON.stringify(jobData));
+      
+      // Navigate to the modify job form
+      navigate('/modify-job');
+    } catch (error) {
+      console.error('Error in handleModifyJob:', error);
+      setActionMessage('Error preparing job modification. Please try again.');
+      setActionMessageType('error');
+    }
+  };
 
   return (
     <div className="job-status-container">
@@ -209,7 +242,7 @@ const JobStatusPage = () => {
       <div className="controls">
         <button 
           className="refresh-button"
-          onClick={() => setRefreshTrigger(prev => prev + 1)}
+          onClick={refreshJobList}
           disabled={loading}
         >
           {loading ? 'Loading...' : 'Refresh Jobs'}
@@ -274,6 +307,20 @@ const JobStatusPage = () => {
                             {processingJobId === job.id ? 'Cancelling...' : 'Cancel Job'}
                           </button>
                         )}
+                        
+                        {/* Modify button - appears for all jobs */}
+                        <button 
+                          className="action-button modify-button"
+                          onClick={(e) => {
+                            e.preventDefault();  // Prevent default button behavior
+                            e.stopPropagation(); // Stop event propagation
+                            handleModifyJob(job);
+                          }}
+                          disabled={processingJobId === job.id}
+                          title="Modify job parameters"
+                        >
+                          Modify
+                        </button>
                         
                         {(job.request_status !== 'running' && job.request_status !== 'problem' && 
                           (job.request_status === 'completed' || job.request_status === 'canceled')) && (

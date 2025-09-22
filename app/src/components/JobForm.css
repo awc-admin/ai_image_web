@@ -199,6 +199,71 @@
   opacity: 0.7;
 }
 
+/* Form actions for ModifyJobForm */
+.job-details {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  border-left: 4px solid #0078d4;
+}
+
+.api-success-message {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background-color: #dff6dd;
+  border: 1px solid #107c10;
+  border-radius: 4px;
+  color: #107c10;
+}
+
+.api-error-message {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background-color: #fde7e9;
+  border: 1px solid #d83b01;
+  border-radius: 4px;
+  color: #d83b01;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.form-actions .cancel-button {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  flex: 1;
+}
+
+.form-actions .cancel-button:hover {
+  background-color: #e0e0e0;
+}
+
+.form-actions .submit-button {
+  background-color: #0078d4;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  flex: 2;
+  margin-top: 0;
+}
+
 /* Job Details Section */
 .job-details {
   margin-top: 1.5rem;
