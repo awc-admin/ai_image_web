@@ -382,7 +382,7 @@ const JobStatusPage = () => {
       <div className="actions">
         <button
           className="back-button"
-          onClick={() => window.history.back()}
+          onClick={() => navigate('/')}
         >
           Back to Job Creation
         </button>
