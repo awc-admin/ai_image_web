@@ -15,7 +15,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     
     # Check if the user is authenticated
     client_principal = req.headers.get('x-ms-client-principal')
-    if not client_principal:
+    # Allow unauthenticated access when running locally (Development)
+    if not client_principal and not os.environ.get('AZURE_FUNCTIONS_ENVIRONMENT') == 'Development':
         return func.HttpResponse(
             json.dumps({"error": "Authentication required"}),
             status_code=401,

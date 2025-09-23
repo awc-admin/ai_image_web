@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "http-proxy-middleware": "^3.0.5"
+  },
+  "scripts": {
+    "start:swa": "swa start ./app --api-devserver-url http://localhost:7071 --app-devserver-url http://localhost:3000 --run \"npm start --prefix ./app\""
   }
 }

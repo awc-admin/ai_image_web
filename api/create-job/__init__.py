@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 import azure.functions as func
 from azure.cosmos.cosmos_client import CosmosClient
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, generate_container_sas, ContainerSasPermissions
 
 # Configuration constants
 COSMOS_ENDPOINT = os.environ.get('COSMOS_ENDPOINT')
@@ -51,23 +51,17 @@ def build_azure_storage_uri(account, container, path=None, sas_token=None):
     return uri
 
 
-def get_blob_permissions(read=True, write=True, create=True, add=True, list_permission=True):
+def get_container_write_permissions():
     """
-    Create standardized permissions for blob SAS tokens.
+    Return write-only permissions for a container-level SAS.
     """
-    return BlobSasPermissions(
-        read=read,
-        add=add,
-        create=create,
-        write=write,
+    return ContainerSasPermissions(
+        read=False,
+        add=False,
+        create=False,
+        write=True,
         delete=False,
-        delete_previous_version=False,
-        tag=False,
-        list=list_permission,
-        move=False,
-        execute=False,
-        ownership=False,
-        permissions=False
+        list=False
     )
 
 class JobStatusTable:
@@ -137,45 +131,28 @@ class JobStatusTable:
             logging.error(f"Failed to create job status: {str(e)}")
             raise
 
-def generate_sas_token(blob_name="", expiry_minutes=DEFAULT_SAS_EXPIRY_MINUTES, read=True, write=True):
+def generate_container_write_sas(expiry_minutes=DEFAULT_SAS_EXPIRY_MINUTES):
     """
-    Generate a SAS token for Azure Blob Storage.
-    
-    Args:
-        blob_name: The name of the blob or directory (empty string for container-level access)
-        expiry_minutes: How long the SAS token should be valid (in minutes)
-        read: Whether to grant read permission
-        write: Whether to grant write permission
-        
-    Returns:
-        The SAS token string
+    Generate a container-level SAS token with write-only permission over HTTPS.
     """
     try:
-        # Set permissions
-        permissions = get_blob_permissions(
-            read=read,
-            write=write,
-            create=write,
-            add=write,
-            list_permission=True
-        )
-        
-        # Set expiry time
-        expiry = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
-        
-        # Generate the SAS token
-        sas_token = generate_blob_sas(
+        permissions = get_container_write_permissions()
+        start_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+        expiry_time = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
+
+        sas_token = generate_container_sas(
             account_name=STORAGE_ACCOUNT_NAME,
             container_name=STORAGE_CONTAINER_UPLOAD,
-            blob_name=blob_name,
             account_key=STORAGE_ACCOUNT_KEY,
             permission=permissions,
-            expiry=expiry
+            start=start_time,
+            expiry=expiry_time,
+            protocol='https'
         )
-        
+
         return sas_token
     except Exception as e:
-        logging.error(f"Error generating SAS token: {str(e)}")
+        logging.error(f"Error generating container SAS token: {str(e)}")
         raise
         
 
@@ -190,17 +167,14 @@ def generate_directory_sas_url(job_id):
         The full SAS URL for the directory
     """
     try:
-        # Directory path within the container
+        # Directory path within the container (virtual folder)
         directory_path = f"{job_id}/"
-        
-        # Generate the SAS token
-        sas_token = generate_sas_token(
-            blob_name=directory_path, 
-            read=True,   # Read permission is useful for listing uploaded files
-            write=True   # Write permission needed for upload
-        )
-        
-        # Build the full SAS URL
+
+        # Generate a container-level SAS token with write-only permission
+        sas_token = generate_container_write_sas()
+
+        # Build a SAS URL targeting the job directory using the container SAS
+        # AzCopy accepts destination paths under the container when SAS is for the container (sr=c)
         sas_url = build_azure_storage_uri(
             account=STORAGE_ACCOUNT_NAME,
             container=STORAGE_CONTAINER_UPLOAD,
