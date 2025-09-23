@@ -86,7 +86,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             c.id, 
             c.status.request_status, 
             c.status.message,
-            c.call_params.num_images,
+            c.status.num_images,
+            c.call_params,
             c.job_submission_time,
             c.last_updated,
             c.call_params.image_path_prefix

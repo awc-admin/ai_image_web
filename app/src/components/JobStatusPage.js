@@ -37,9 +37,11 @@ const JobStatusPage = () => {
         }
         
         const data = await response.json();
+        console.log("Jobs data from API:", data);
         setJobs(data);
         setError(null);
       } catch (err) {
+        console.error("Error fetching jobs:", err);
         setError('Failed to load jobs. Please try again later.');
       } finally {
         setLoading(false);
@@ -90,6 +92,45 @@ const JobStatusPage = () => {
     }
     
     return message;
+  };
+  
+  // Helper function to get the number of images based on the priority logic
+  const getNumberOfImages = (job) => {
+    // First try to get from status.num_images
+    if (job.status && job.status.num_images !== undefined) {
+      return job.status.num_images;
+    }
+    
+    // Then try to get from call_params.num_images
+    if (job.call_params && job.call_params.num_images !== undefined) {
+      return job.call_params.num_images;
+    }
+    
+    // Finally, fall back to the job.num_images (if it exists)
+    return job.num_images || '-';
+  };
+  
+  // Helper function to render the parameters
+  const renderParameters = (job) => {
+    // Debug to see what we're getting from the API
+    console.log("Job parameters data:", job);
+    
+    // Check if call_params exists and has required fields
+    if (!job.call_params) {
+      console.log("No call_params found for job:", job.id);
+      return '-';
+    }
+    
+    const params = job.call_params;
+    
+    return (
+      <div className="parameters-container">
+        <div><strong>model_version:</strong> {params.model_version || '-'}</div>
+        <div><strong>classify:</strong> {params.classify !== undefined ? String(params.classify) : '-'}</div>
+        <div><strong>hitax_type:</strong> {params.hitax_type || '-'}</div>
+        <div><strong>do_smoothing:</strong> {params.do_smoothing !== undefined ? String(params.do_smoothing) : '-'}</div>
+      </div>
+    );
   };
   
   // Pagination logic
@@ -277,6 +318,7 @@ const JobStatusPage = () => {
                   <th className="col-message">Message</th>
                   <th className="col-folder">Folder Name</th>
                   <th className="col-images">Number of Images</th>
+                  <th className="col-parameters">Parameters</th>
                   <th className="col-submission">Job Submission Time</th>
                   <th className="col-updated">Last Updated</th>
                 </tr>
@@ -332,7 +374,8 @@ const JobStatusPage = () => {
                     <td className="col-status">{renderStatusBadge(job.request_status)}</td>
                     <td className="message-cell col-message">{renderMessage(job.message)}</td>
                     <td className="col-folder">{job.folder_name || '-'}</td>
-                    <td className="numeric col-images">{job.num_images}</td>
+                    <td className="numeric col-images">{getNumberOfImages(job)}</td>
+                    <td className="col-parameters">{renderParameters(job)}</td>
                     <td className="col-submission">{job.job_submission_time}</td>
                     <td className="col-updated">{job.last_updated}</td>
                   </tr>

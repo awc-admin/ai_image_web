@@ -161,15 +161,19 @@
 }
 
 .col-images {
-  width: 12%; /* Widened to fit "Number of Images" */
+  width: 8%; /* Adjusted to fit "Number of Images" */
+}
+
+.col-parameters {
+  width: 16%; /* Added for Parameters column */
 }
 
 .col-submission {
-  width: 16%; /* Widened to fit "Job Submission Time" */
+  width: 12%; /* Adjusted to fit "Job Submission Time" */
 }
 
 .col-updated {
-  width: 16%;
+  width: 12%;
 }
 
 .jobs-table .job-id {
@@ -202,6 +206,22 @@
 
 .message-link:hover {
   text-decoration: underline;
+}
+
+/* Parameters styling */
+.parameters-container {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  padding: 4px 0;
+}
+
+.parameters-container div {
+  margin-bottom: 3px;
+}
+
+.parameters-container strong {
+  font-weight: 600;
+  color: #333;
 }
 
 /* Action buttons */
@@ -464,15 +484,19 @@
   }
   
   .col-message {
-    width: 18%;
+    width: 16%;
   }
   
   .col-images {
-    width: 10%;
+    width: 8%;
+  }
+  
+  .col-parameters {
+    width: 14%;
   }
   
   .col-submission, .col-updated {
-    width: 15%;
+    width: 12%;
   }
 }
 
@@ -510,6 +534,6 @@
   
   /* Ensure the table takes full width */
   .jobs-table {
-    min-width: 900px;
+    min-width: 1100px;
   }
 }
