@@ -68,6 +68,9 @@ const JobForm = () => {
   const [isAzCopyPanelOpen, setIsAzCopyPanelOpen] = useState(false);
   const [autoSubmitAfterUpload, setAutoSubmitAfterUpload] = useState(false);
   
+  // State for image count threshold
+  const [imageCount, setImageCount] = useState(0);
+  
   // Destructure formData for easier access in the JSX
   const { 
     detectionModel, 
@@ -668,6 +671,9 @@ const JobForm = () => {
       const imageFiles = Array.from(formData.files || []).filter(file => isImageFile(file));
       const imageCount = imageFiles.length;
       
+      // Store image count for UI logic
+      setImageCount(imageCount);
+      
       // Extract the top-level folder name from the webkitRelativePath
       let imagePath = '';
       if (formData.files && formData.files.length > 0) {
@@ -1031,64 +1037,101 @@ const JobForm = () => {
               <h4>Choose Upload Method</h4>
               
               <div className="option-container">
-                {/* Browser Upload Option */}
-                <div className="upload-option">
-                  <h5>Option 1: Browser Upload</h5>
-                  <p>Best for smaller uploads (up to a few GB total).</p>
-                  
-                  <div className="auto-submit-option">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={autoSubmitAfterUpload}
-                        onChange={(e) => setAutoSubmitAfterUpload(e.target.checked)}
-                      />
-                      Submit job after uploading is done
-                    </label>
+                {/* Browser Upload Option - Only show if less than 20,000 images */}
+                {imageCount < 20000 && (
+                  <div className="upload-option">
+                    <h5>Option 1: Browser Upload</h5>
+                    <p>Best for smaller uploads (up to a few GB total).</p>
+                    
+                    <div className="auto-submit-option">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={autoSubmitAfterUpload}
+                          onChange={(e) => setAutoSubmitAfterUpload(e.target.checked)}
+                        />
+                        Submit job after uploading is done
+                      </label>
+                    </div>
+                    
+                    <div className="upload-actions">
+                      <button
+                        type="button"
+                        className="upload-button"
+                        onClick={handleStartUpload}
+                      >
+                        {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Browser Upload'}
+                      </button>
+                    </div>
                   </div>
-                  
-                  <div className="upload-actions">
-                    <button
-                      type="button"
-                      className="upload-button"
-                      onClick={handleStartUpload}
-                    >
-                      {uploadProgress.uploaded > 0 ? 'Resume Upload' : 'Start Browser Upload'}
-                    </button>
-                  </div>
-                </div>
+                )}
                 
-                {/* AzCopy Option - Collapsible */}
+                {/* Show message if too many images for browser upload */}
+                {imageCount >= 20000 && (
+                  <div className="upload-option">
+                    <h5>Large Dataset Detected</h5>
+                    <p>With {imageCount.toLocaleString()} images, browser upload is not recommended. Please use the AzCopy method below for optimal performance.</p>
+                  </div>
+                )}
+                
+                {/* AzCopy Option - Always show, but auto-expand if browser upload is hidden */}
                 <div className="upload-option">
                   <div 
                     className="collapsible-header" 
                     onClick={() => setIsAzCopyPanelOpen(!isAzCopyPanelOpen)}
                   >
-                    <h5>Option 2: AzCopy Command (for large uploads)</h5>
+                    <h5>Option 2: AzCopy Upload (Recommended for large datasets)</h5>
                     <span className={`collapse-arrow ${isAzCopyPanelOpen ? 'open' : ''}`}>▼</span>
                   </div>
                   
-                  {isAzCopyPanelOpen && (
+                  {(isAzCopyPanelOpen || imageCount >= 20000) && (
                     <div className="collapsible-content">
-                      <p>Recommended for very large datasets. Copy this command and run it in your terminal:</p>
+                      <p>For large datasets, use AzCopy for faster and more reliable uploads. You have two options:</p>
                       
-                      <div className="azcopy-command">
-                        <pre>{jobDetails.azCopyCommand}</pre>
-                        <button 
-                          type="button" 
-                          className="copy-button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(jobDetails.azCopyCommand);
-                            alert('AzCopy command copied to clipboard!');
-                          }}
-                        >
-                          Copy to Clipboard
-                        </button>
+                      <div className="azcopy-options">
+                        <div className="azcopy-option">
+                          <h6>Option A: Terminal Command</h6>
+                          <p>Copy the SAS URL below and use it with AzCopy:</p>
+                          
+                          <div className="sas-url-section">
+                            <div className="sas-url-box">
+                              <pre>{jobDetails.sasTokenUrl}</pre>
+                              <button 
+                                type="button" 
+                                className="copy-button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(jobDetails.sasTokenUrl);
+                                  alert('SAS URL copied to clipboard!');
+                                }}
+                              >
+                                Copy SAS URL
+                              </button>
+                            </div>
+                            
+                            <div className="command-example">
+                              <p><strong>Command format:</strong></p>
+                              <pre>azcopy copy "&lt;local_folder_path&gt;/*" "&lt;SAS token URL&gt;" --recursive=true</pre>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="azcopy-option">
+                          <h6>Option B: Companion Program</h6>
+                          <p>Download our Windows companion program for an easier upload experience:</p>
+                          <a 
+                            href="https://github.com/awc-admin/azure_image_uploader_releases/releases/latest" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="download-link"
+                          >
+                            Download Azure Image Uploader
+                          </a>
+                        </div>
                       </div>
 
                       {/* Text about making sure images are uploaded */}
                       <div className="upload-warning">
-                        <p>Make sure all your images have been uploaded via the AzCopy command before clicking the 'Submit this job' button</p>
+                        <p><strong>Important:</strong> Complete your file upload using either method above before clicking 'Submit this job' to start AI processing.</p>
                       </div>
 
                       {/* Submit this job button */}

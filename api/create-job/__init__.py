@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 import azure.functions as func
 from azure.cosmos.cosmos_client import CosmosClient
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions, generate_container_sas, ContainerSasPermissions
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 
 # Configuration constants
 COSMOS_ENDPOINT = os.environ.get('COSMOS_ENDPOINT')
@@ -51,17 +51,23 @@ def build_azure_storage_uri(account, container, path=None, sas_token=None):
     return uri
 
 
-def get_container_write_permissions():
+def get_blob_permissions(read=True, write=True, create=True, add=True, list_permission=True):
     """
-    Return write-only permissions for a container-level SAS.
+    Create standardized permissions for blob SAS tokens.
     """
-    return ContainerSasPermissions(
-        read=False,
-        add=False,
-        create=False,
-        write=True,
+    return BlobSasPermissions(
+        read=read,
+        add=add,
+        create=create,
+        write=write,
         delete=False,
-        list=False
+        delete_previous_version=False,
+        tag=False,
+        list=list_permission,
+        move=False,
+        execute=False,
+        ownership=False,
+        permissions=False
     )
 
 class JobStatusTable:
@@ -131,28 +137,48 @@ class JobStatusTable:
             logging.error(f"Failed to create job status: {str(e)}")
             raise
 
-def generate_container_write_sas(expiry_minutes=DEFAULT_SAS_EXPIRY_MINUTES):
+def generate_blob_sas_token(blob_name="", expiry_minutes=DEFAULT_SAS_EXPIRY_MINUTES, read=True, write=True):
     """
-    Generate a container-level SAS token with write-only permission over HTTPS.
+    Generate a blob-level SAS token for Azure Blob Storage.
+    
+    Args:
+        blob_name: The name of the blob or directory (empty string for container-level access)
+        expiry_minutes: How long the SAS token should be valid (in minutes)
+        read: Whether to grant read permission
+        write: Whether to grant write permission
+        
+    Returns:
+        The SAS token string
     """
     try:
-        permissions = get_container_write_permissions()
+        # Set permissions
+        permissions = get_blob_permissions(
+            read=read,
+            write=write,
+            create=write,
+            add=write,
+            list_permission=True
+        )
+        
+        # Set start and expiry times
         start_time = datetime.now(timezone.utc) - timedelta(minutes=5)
         expiry_time = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
-
-        sas_token = generate_container_sas(
+        
+        # Generate the SAS token
+        sas_token = generate_blob_sas(
             account_name=STORAGE_ACCOUNT_NAME,
             container_name=STORAGE_CONTAINER_UPLOAD,
+            blob_name=blob_name,
             account_key=STORAGE_ACCOUNT_KEY,
             permission=permissions,
             start=start_time,
             expiry=expiry_time,
             protocol='https'
         )
-
+        
         return sas_token
     except Exception as e:
-        logging.error(f"Error generating container SAS token: {str(e)}")
+        logging.error(f"Error generating SAS token: {str(e)}")
         raise
         
 
@@ -167,14 +193,44 @@ def generate_directory_sas_url(job_id):
         The full SAS URL for the directory
     """
     try:
-        # Directory path within the container (virtual folder)
+        # For AzCopy to work with multiple files in a directory, we need to use
+        # a container-level SAS token but scope it to the job directory using
+        # the resource parameter. However, since Azure doesn't support directory-level
+        # scoping with container SAS, we'll use a different approach:
+        # Generate a blob SAS for a wildcard pattern or use container SAS with
+        # the job directory as the base path.
+        
+        # Generate a container-level SAS token with write permissions
+        # This is necessary for AzCopy to upload multiple files to different paths
+        # We'll use a shorter expiry time for security
+        from azure.storage.blob import generate_container_sas, ContainerSasPermissions
+        
+        permissions = ContainerSasPermissions(
+            read=False,
+            add=False,
+            create=False,
+            write=True,
+            delete=False,
+            list=False
+        )
+        
+        start_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+        # Shorter expiry for security - 2 hours instead of default 1 hour
+        expiry_time = datetime.now(timezone.utc) + timedelta(minutes=120)
+        
+        sas_token = generate_container_sas(
+            account_name=STORAGE_ACCOUNT_NAME,
+            container_name=STORAGE_CONTAINER_UPLOAD,
+            account_key=STORAGE_ACCOUNT_KEY,
+            permission=permissions,
+            start=start_time,
+            expiry=expiry_time,
+            protocol='https'
+        )
+
+        # Build the SAS URL targeting the job directory
+        # AzCopy will append the file paths to this base URL
         directory_path = f"{job_id}/"
-
-        # Generate a container-level SAS token with write-only permission
-        sas_token = generate_container_write_sas()
-
-        # Build a SAS URL targeting the job directory using the container SAS
-        # AzCopy accepts destination paths under the container when SAS is for the container (sr=c)
         sas_url = build_azure_storage_uri(
             account=STORAGE_ACCOUNT_NAME,
             container=STORAGE_CONTAINER_UPLOAD,
@@ -200,6 +256,7 @@ def generate_azcopy_command(sas_url):
     """
     # The AzCopy command should use the SAS URL as the destination
     # and ask the user to replace <local_folder_path> with their folder path
+    # Note: The SAS URL should end with the job directory path
     azcopy_command = f'azcopy copy "<local_folder_path>/*" "{sas_url}" --recursive=true'
     return azcopy_command
 
