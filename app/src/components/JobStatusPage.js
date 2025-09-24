@@ -339,7 +339,7 @@ const JobStatusPage = () => {
                           </button>
                         )}
                         
-                        {job.request_status !== 'completed' && job.request_status !== 'canceled' && (
+                        {job.request_status !== 'completed' && job.request_status !== 'canceled' && job.request_status !== 'created' && (
                           <button 
                             className="action-button cancel-button"
                             onClick={() => handleCancelJob(job.id)}
