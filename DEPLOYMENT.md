@@ -98,6 +98,10 @@ start-swa.bat
 
 #### Method B: Azure CLI
 ```bash
+# If not created yet: Create function app with command
+az functionapp create --resource-group <your-resource-group-name> --consumption-plan-location <your-location> --runtime python --runtime-version 3.11 --functions-version 4 --name <your-function-app-name> --storage-account <your-storage-account-name>
+
+# Deploy the functions
 cd api
 func azure functionapp publish <your-function-app-name>
 ```
