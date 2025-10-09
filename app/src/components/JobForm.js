@@ -334,13 +334,36 @@ const JobForm = () => {
     }
   };
   
+  // Helper function to upload a single file (extracted to avoid closure issues in loops)
+  const uploadSingleFile = async (file, jobId, relativePath) => {
+    try {
+      // Upload the file with its relative path
+      const success = await uploadFileViaAPI(file, jobId, relativePath);
+      
+      if (success) {
+        // Update file status in localStorage
+        const newUploadedCount = updateFileStatus(jobId, file.name, 'complete', file.webkitRelativePath);
+        
+        // Update progress UI
+        setUploadProgress(prev => ({
+          ...prev,
+          uploaded: newUploadedCount,
+          percentage: Math.round((newUploadedCount / prev.total) * 100)
+        }));
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error(`Error uploading file ${file.name}:`, error);
+      return false;
+    }
+  };
+
   // Function to upload a batch of files in parallel
   const uploadFileBatch = async (jobId, files, batchSize = 3) => {
     // Create a copy of the files array to avoid mutation
     const pendingBatch = [...files];
-    
-    // Track successful uploads in this batch
-    let successCount = 0;
     
     // Process files in parallel
     const uploadPromises = [];
@@ -353,40 +376,16 @@ const JobForm = () => {
       const relativePath = file.webkitRelativePath ? 
                            file.webkitRelativePath.substring(0, file.webkitRelativePath.lastIndexOf('/') + 1) : '';
       
-      // Create a promise for this file upload
-      const uploadPromise = (async () => {
-        try {
-          // Upload the file with its relative path
-          const success = await uploadFileViaAPI(file, jobId, relativePath);
-          
-          if (success) {
-            // Update file status in localStorage
-            const newUploadedCount = updateFileStatus(jobId, file.name, 'complete', file.webkitRelativePath);
-            
-            // Increment success count for this batch
-            successCount++;
-            
-            // Update progress UI
-            setUploadProgress(prev => ({
-              ...prev,
-              uploaded: newUploadedCount,
-              percentage: Math.round((newUploadedCount / prev.total) * 100)
-            }));
-            
-            return true;
-          }
-          return false;
-        } catch (error) {
-          console.error(`Error uploading file ${file.name}:`, error);
-          return false;
-        }
-      })();
-      
+      // Create a promise for this file upload using a separate function to avoid closure issues
+      const uploadPromise = uploadSingleFile(file, jobId, relativePath);
       uploadPromises.push(uploadPromise);
     }
     
     // Wait for all uploads in this batch to complete
     const results = await Promise.all(uploadPromises);
+    
+    // Count successful uploads
+    const successCount = results.filter(result => result === true).length;
     
     // Check if any uploads failed
     const allSuccessful = results.every(result => result === true);
