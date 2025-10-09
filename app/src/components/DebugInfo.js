@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 
 const DebugInfo = () => {
   const [debugInfo, setDebugInfo] = useState({});
-  const [authProviders, setAuthProviders] = useState({});
 
   useEffect(() => {
     const fetchDebugInfo = async () => {
@@ -10,7 +9,6 @@ const DebugInfo = () => {
         // Get auth providers info
         const providersResponse = await fetch('/.auth/providers');
         const providersData = await providersResponse.json();
-        setAuthProviders(providersData);
 
         // Get current auth info
         const authResponse = await fetch('/.auth/me');
