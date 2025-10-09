@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserId } from '../utils/mockAuth';
 import './JobForm.css';
@@ -45,6 +45,33 @@ const ModifyJobForm = () => {
     performSmoothing 
   } = formData;
 
+  // Function to fetch the original job parameters
+  const fetchOriginalJobParameters = useCallback(async (jobId) => {
+    try {
+      // In a real implementation, you would fetch the job details from an API
+      // For this example, we'll use some default values
+      // You could implement an API endpoint like /api/get-job-details?jobId=xxx
+      
+      // Placeholder for API call
+      
+      // Set default values for now
+      setFormData({
+        detectionModel: '1000-redwood',
+        email: '',
+        classify: 'False',
+        hierarchicalClassificationType: 'off',
+        performSmoothing: 'False'
+      });
+      
+    } catch (error) {
+      console.error('Error fetching job parameters:', error);
+      setErrors({
+        ...errors,
+        api: 'Failed to load original job parameters. Using default values.'
+      });
+    }
+  }, [errors]); // Add dependencies for useCallback
+  
   // Load job details from session storage when component mounts
   useEffect(() => {
     const storedJobDetails = sessionStorage.getItem('modifyJobDetails');
@@ -57,7 +84,9 @@ const ModifyJobForm = () => {
         setJobDetails(parsedDetails);
         
         // Try to load the original job parameters if available
-        fetchOriginalJobParameters(parsedDetails.jobId);
+        if (parsedDetails && parsedDetails.jobId) {
+          fetchOriginalJobParameters(parsedDetails.jobId);
+        }
       } catch (error) {
         console.error('Error parsing job details:', error);
         setErrors({
@@ -82,34 +111,7 @@ const ModifyJobForm = () => {
         navigate('/status');
       }, 2000);
     }
-  }, [navigate, errors, fetchOriginalJobParameters]);
-  
-  // Function to fetch the original job parameters
-  const fetchOriginalJobParameters = async (jobId) => {
-    try {
-      // In a real implementation, you would fetch the job details from an API
-      // For this example, we'll use some default values
-      // You could implement an API endpoint like /api/get-job-details?jobId=xxx
-      
-      // Placeholder for API call
-      
-      // Set default values for now
-      setFormData({
-        detectionModel: '1000-redwood',
-        email: '',
-        classify: 'False',
-        hierarchicalClassificationType: 'off',
-        performSmoothing: 'False'
-      });
-      
-    } catch (error) {
-      console.error('Error fetching job parameters:', error);
-      setErrors({
-        ...errors,
-        api: 'Failed to load original job parameters. Using default values.'
-      });
-    }
-  };
+  }, [navigate, fetchOriginalJobParameters]);
   
   // Validate email format
   const validateEmail = (email) => {

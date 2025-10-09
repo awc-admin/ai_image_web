@@ -353,11 +353,6 @@ const JobForm = () => {
       const relativePath = file.webkitRelativePath ? 
                            file.webkitRelativePath.substring(0, file.webkitRelativePath.lastIndexOf('/') + 1) : '';
       
-      // Create a local successCount reference for this closure to avoid the ESLint warning
-      // const incrementSuccessCount = () => {
-      //   successCount++;
-      // };
-      
       // Create a promise for this file upload
       const uploadPromise = (async () => {
         try {
