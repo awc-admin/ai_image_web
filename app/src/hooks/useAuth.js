@@ -16,13 +16,22 @@ export function useAuth() {
         // Determine if we're in local development or production
         const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
+        // DEBUG: Log environment info
+        console.log('🔍 AUTH DEBUG - Environment:', {
+          hostname: window.location.hostname,
+          isLocalDevelopment,
+          currentUrl: window.location.href
+        });
+        
         if (isLocalDevelopment) {
           // Local development: use mock authentication
           const mockAuthStatus = localStorage.getItem('mockAuthStatus');
+          console.log('🔍 AUTH DEBUG - Mock auth status:', mockAuthStatus);
           
           if (mockAuthStatus === 'authenticated') {
             const response = await fetch('/.auth/me');
             const data = await response.json();
+            console.log('🔍 AUTH DEBUG - Mock auth response:', data);
             
             if (data && data.clientPrincipal) {
               setIsAuthenticated(true);
@@ -34,20 +43,27 @@ export function useAuth() {
           }
         } else {
           // Production: use real Azure Static Web Apps authentication
+          console.log('🔍 AUTH DEBUG - Fetching /.auth/me...');
           const response = await fetch('/.auth/me');
+          console.log('🔍 AUTH DEBUG - Response status:', response.status);
+          console.log('🔍 AUTH DEBUG - Response headers:', Object.fromEntries(response.headers.entries()));
+          
           const data = await response.json();
+          console.log('🔍 AUTH DEBUG - Auth response data:', data);
           
           // Check if user data exists and has a clientPrincipal
           if (data && data.clientPrincipal) {
+            console.log('🔍 AUTH DEBUG - User authenticated:', data.clientPrincipal);
             setIsAuthenticated(true);
             setUser(data.clientPrincipal);
           } else {
+            console.log('🔍 AUTH DEBUG - User not authenticated');
             setIsAuthenticated(false);
             setUser(null);
           }
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
+        console.error('🔍 AUTH DEBUG - Error fetching user data:', error);
         setIsAuthenticated(false);
         setUser(null);
       } finally {

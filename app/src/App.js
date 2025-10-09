@@ -4,6 +4,7 @@ import Authentication from './components/Authentication';
 import JobForm from './components/JobForm';
 import JobStatusPage from './components/JobStatusPage';
 import ModifyJobForm from './components/ModifyJobForm';
+import DebugInfo from './components/DebugInfo';
 import { useAuth } from './hooks/useAuth';
 import './components/Authentication.css';
 
@@ -14,6 +15,9 @@ function AppContent() {
   
   return (
     <div className="App">
+      {/* Debug component - remove after debugging */}
+      <DebugInfo />
+      
       <header className="App-header">
         <h1>AI Image Web App</h1>
         <p>
