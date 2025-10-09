@@ -46,7 +46,7 @@ export function useAuth() {
           console.log('🔍 AUTH DEBUG - Fetching /.auth/me...');
           const response = await fetch('/.auth/me');
           console.log('🔍 AUTH DEBUG - Response status:', response.status);
-          console.log('🔍 AUTH DEBUG - Response headers:', Object.fromEntries(response.headers.entries()));
+          console.log('🔍 AUTH DEBUG - Response headers:', response.headers ? Object.fromEntries(response.headers.entries()) : 'No headers');
           
           const data = await response.json();
           console.log('🔍 AUTH DEBUG - Auth response data:', data);

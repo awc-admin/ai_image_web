@@ -12,6 +12,17 @@
       "allowedRoles": ["authenticated"]
     }
   ],
+  "auth": {
+    "identityProviders": {
+      "azureActiveDirectory": {
+        "registration": {
+          "openIdIssuer": "https://login.microsoftonline.com/common/v2.0",
+          "clientIdSettingName": "a55327d5-8f75-424f-b783-fb891be57ac6",
+          "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+        }
+      }
+    }
+  },
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/static/*", "/images/*.{png,jpg,gif}", "/css/*", "/*.{ico,png,jpg,gif}", "/*.js", "/*.css", "/mockAuth.js"]
