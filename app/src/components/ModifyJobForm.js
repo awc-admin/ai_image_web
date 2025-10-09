@@ -111,7 +111,7 @@ const ModifyJobForm = () => {
         navigate('/status');
       }, 2000);
     }
-  }, [navigate, fetchOriginalJobParameters]);
+  }, [navigate, fetchOriginalJobParameters, errors]);
   
   // Validate email format
   const validateEmail = (email) => {
