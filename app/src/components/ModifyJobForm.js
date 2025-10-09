@@ -82,7 +82,7 @@ const ModifyJobForm = () => {
         navigate('/status');
       }, 2000);
     }
-  }, [navigate]);
+  }, [navigate, errors, fetchOriginalJobParameters]);
   
   // Function to fetch the original job parameters
   const fetchOriginalJobParameters = async (jobId) => {
@@ -92,7 +92,6 @@ const ModifyJobForm = () => {
       // You could implement an API endpoint like /api/get-job-details?jobId=xxx
       
       // Placeholder for API call
-      const userId = await getUserId();
       
       // Set default values for now
       setFormData({
@@ -211,7 +210,6 @@ const ModifyJobForm = () => {
       
       // Handle the response
       if (response.ok) {
-        const result = await response.json();
         
         // Show success message
         setApiMessageType('success');

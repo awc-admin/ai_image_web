@@ -6,16 +6,11 @@ import JobStatusPage from './components/JobStatusPage';
 import ModifyJobForm from './components/ModifyJobForm';
 import { useAuth } from './hooks/useAuth';
 import './components/Authentication.css';
-import { useEffect, useState } from 'react';
 
 // Create an AppContent component to use the useLocation hook
 function AppContent() {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
-  
-  // Determine which navigation buttons to show based on the path
-  const showViewStatusButton = true; // Always show the View Status button
-  const showCreateJobButton = location.pathname !== '/'; // Only show Create Job button when not on home page
   
   return (
     <div className="App">
