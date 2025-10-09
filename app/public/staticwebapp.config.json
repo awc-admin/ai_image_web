@@ -18,10 +18,6 @@
     {
       "route": "/.auth/logout",
       "statusCode": 200
-    },
-    {
-      "route": "/*",
-      "rewrite": "/index.html"
     }
   ],
   "auth": {
@@ -37,7 +33,7 @@
   },
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/images/*.{png,jpg,gif}", "/css/*", "/*.{ico,png,jpg,gif}"]
+    "exclude": ["/static/*", "/images/*.{png,jpg,gif}", "/css/*", "/*.{ico,png,jpg,gif}", "/*.js", "/*.css", "/mockAuth.js"]
   },
   "responseOverrides": {
     "401": {
