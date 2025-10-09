@@ -1,10 +1,6 @@
 {
   "routes": [
     {
-      "route": "/*",
-      "allowedRoles": ["anonymous"]
-    },
-    {
       "route": "/api/*",
       "methods": ["GET", "POST", "PUT", "DELETE"],
       "allowedRoles": ["anonymous"]
@@ -13,6 +9,10 @@
       "route": "/api-proxy/*",
       "methods": ["GET", "POST", "PUT", "DELETE"],
       "rewrite": "http://20.11.8.84:5000/{rest}",
+      "allowedRoles": ["anonymous"]
+    },
+    {
+      "route": "/*",
       "allowedRoles": ["anonymous"]
     }
   ],
