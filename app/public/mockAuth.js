@@ -88,7 +88,15 @@ window.mockAuth = {
   }
 };
 
-// Initialize mock auth when script is loaded
+// Initialize mock auth when script is loaded (only in local development)
 document.addEventListener('DOMContentLoaded', function() {
-  window.mockAuth.init();
+  // Only initialize mock auth in local development
+  const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  if (isLocalDevelopment) {
+    console.log('Mock Auth: Initializing for local development');
+    window.mockAuth.init();
+  } else {
+    console.log('Mock Auth: Skipping initialization in production environment');
+  }
 });

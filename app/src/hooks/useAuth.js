@@ -13,20 +13,27 @@ export function useAuth() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Check if we have a mock auth status (for local development)
-        const mockAuthStatus = localStorage.getItem('mockAuthStatus');
+        // Determine if we're in local development or production
+        const isLocalDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         
-        if (mockAuthStatus === 'authenticated') {
-          // For mock auth in local development
-          const response = await fetch('/.auth/me');
-          const data = await response.json();
+        if (isLocalDevelopment) {
+          // Local development: use mock authentication
+          const mockAuthStatus = localStorage.getItem('mockAuthStatus');
           
-          if (data && data.clientPrincipal) {
-            setIsAuthenticated(true);
-            setUser(data.clientPrincipal);
+          if (mockAuthStatus === 'authenticated') {
+            const response = await fetch('/.auth/me');
+            const data = await response.json();
+            
+            if (data && data.clientPrincipal) {
+              setIsAuthenticated(true);
+              setUser(data.clientPrincipal);
+            }
+          } else {
+            setIsAuthenticated(false);
+            setUser(null);
           }
         } else {
-          // If no mock auth status and no real auth, check real auth status
+          // Production: use real Azure Static Web Apps authentication
           const response = await fetch('/.auth/me');
           const data = await response.json();
           
